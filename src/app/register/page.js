@@ -1,8 +1,11 @@
-// src/app/register/page.js
 'use client'
 import { useState } from 'react'
+import { register } from '@/lib/api' // đường dẫn có thể khác tuỳ bạn đặt
+import { useRouter } from 'next/navigation'
 
 export default function RegisterPage() {
+  const router = useRouter()
+
   const [form, setForm] = useState({
     username: '',
     email: '',
@@ -10,50 +13,57 @@ export default function RegisterPage() {
     confirmPassword: '',
   })
 
+  const [message, setMessage] = useState('')
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (form.password !== form.confirmPassword) {
-      alert('Passwords do not match')
+      setMessage('Passwords do not match')
       return
     }
-    console.log('Form submitted:', form)
-    // Thực hiện gọi API ở đây nếu có
+
+    try {
+      const data = await register(form.email, form.username, form.password)
+      setMessage(`Đăng ký thành công! ID: ${data.user_id}`)
+      setTimeout(() => router.push('/login'), 1500) // Chuyển về login sau 1.5s
+    } catch (err) {
+      setMessage(err.message)
+    }
   }
 
-return (
-  <div style={{ display: 'flex', height: '100vh' }}>
-    {/* Bên trái: chiếm 70% */}
-    <div style={{ flex: 7, backgroundColor: '#e0e0e0' }}>
-      { <img
-    src="/register.jpg"
-    alt="Login background"
-    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-  />}
-    </div>
+  return (
+    <div style={{ display: 'flex', height: '100vh' }}>
+      <div style={{ flex: 7 }}>
+        <img
+          src="/register.jpg"
+          alt="Register background"
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      </div>
 
-    {/* Bên phải: chiếm 30% */}
-    <div
-      style={{
-        flex: 3,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#D9D9D9'
-      }}
-    >
-      <form onSubmit={handleSubmit} style={{ width: '80%', maxWidth: '400px' }}>
-        <h2 style={{ color: 'white' }}>REGISTER YOUR ACCOUNT</h2>
-        <input name="username" placeholder="Username" onChange={handleChange} value={form.username} required />
-        <input name="email" type="email" placeholder="Email" onChange={handleChange} value={form.email} required />
-        <input name="password" type="password" placeholder="Password" onChange={handleChange} value={form.password} required />
-        <input name="confirmPassword" type="password" placeholder="Confirm Password" onChange={handleChange} value={form.confirmPassword} required />
-        <button type="submit">Register</button>
-      </form>
+      <div
+        style={{
+          flex: 3,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#D9D9D9'
+        }}
+      >
+        <form onSubmit={handleSubmit} style={{ width: '80%', maxWidth: '400px' }}>
+          <h2 style={{ color: 'white' }}>REGISTER YOUR ACCOUNT</h2>
+          <input name="username" placeholder="Username" onChange={handleChange} value={form.username} required />
+          <input name="email" type="email" placeholder="Email" onChange={handleChange} value={form.email} required />
+          <input name="password" type="password" placeholder="Password" onChange={handleChange} value={form.password} required />
+          <input name="confirmPassword" type="password" placeholder="Confirm Password" onChange={handleChange} value={form.confirmPassword} required />
+          <button type="submit">Register</button>
+          {message && <p style={{ marginTop: '10px', color: 'red' }}>{message}</p>}
+        </form>
+      </div>
     </div>
-  </div>
-)
+  )
 }
