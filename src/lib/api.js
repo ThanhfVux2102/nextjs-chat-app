@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:8000/api/auth"; // nếu bạn chạy BE local
+const BASE_URL = "http://localhost:8000/api/auth"; 
 
 export const login = async (email, password) => {
   const res = await fetch(`${BASE_URL}/login`, {
@@ -8,7 +8,7 @@ export const login = async (email, password) => {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
-  return data; // { access_token }
+  return data
 };
 
 export const register = async (email, username, password) => {
@@ -19,5 +19,5 @@ export const register = async (email, username, password) => {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "Đăng ký thất bại");
-  return data; // { msg, user_id }
+  return data; 
 };
