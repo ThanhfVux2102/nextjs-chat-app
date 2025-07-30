@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { register } from '@/lib/api' // đường dẫn có thể khác tuỳ bạn đặt
+import { register } from '@/lib/api' 
 import { useRouter } from 'next/navigation'
 
 export default function RegisterPage() {
@@ -29,7 +29,7 @@ export default function RegisterPage() {
     try {
       const data = await register(form.email, form.username, form.password)
       setMessage(`Đăng ký thành công! ID: ${data.user_id}`)
-      setTimeout(() => router.push('/login'), 1500) // Chuyển về login sau 1.5s
+      setTimeout(() => router.push('/login'), 1500) 
     } catch (err) {
       setMessage(err.message)
     }
