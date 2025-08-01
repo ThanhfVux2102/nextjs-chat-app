@@ -2,16 +2,23 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Archivo_Black } from 'next/font/google'
+import { forgotPassword } from '@/lib/api'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const router = useRouter()
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    console.log("Reset link sent to:", email)
-    // Gọi API gửi email reset password tại đây
+const handleSubmit = async (e) => {
+  e.preventDefault()
+
+  try {
+    await forgotPassword(email)
+    alert('Check your email for the reset link.')
+    router.push('/login')
+  } catch (error) {
+    alert(error.message)
   }
+}
 
   return (
     <div style={styles.wrapper}>
