@@ -20,8 +20,7 @@ export default function RegisterPage() {
       alert('Passwords do not match')
       return
     }
-    console.log('Form submitted:', form)
-    // Thực hiện gọi API ở đây nếu có
+
   }
 
 return (
