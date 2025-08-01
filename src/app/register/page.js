@@ -1,6 +1,8 @@
-// src/app/register/page.js
+
 'use client'
 import { useState } from 'react'
+import { register } from '@/lib/api'
+import { useRouter } from 'next/navigation'
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -14,15 +16,25 @@ export default function RegisterPage() {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (form.password !== form.confirmPassword) {
       alert('Passwords do not match')
       return
     }
 
+    try {
+      const res = await register(form.email, form.username, form.password)
+      setMessage('Đăng ký thành công!')
+      router.push('/login')
+    } catch (error) {
+      setMessage(error.message || 'Đăng ký thất bại')
+    }
+
   }
 
+
+  
 return (
   <div style={{ display: 'flex', height: '100vh' }}>
     
@@ -34,7 +46,7 @@ return (
   />}
     </div>
 
-    {/* Bên phải: chiếm 30% */}
+   
     <div
       style={{
         flex: 3,
@@ -51,6 +63,7 @@ return (
         <input name="password" type="password" placeholder="Password" onChange={handleChange} value={form.password} required />
         <input name="confirmPassword" type="password" placeholder="Confirm Password" onChange={handleChange} value={form.confirmPassword} required />
         <button type="submit">Register</button>
+         {message && <p style={{ color: 'red', marginTop: 10 }}>{message}</p>}
       </form>
     </div>
   </div>
