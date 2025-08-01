@@ -1,4 +1,5 @@
-const BASE_URL = 'http://localhost:8000'
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
 
 export async function login(email, password) {
   const res = await fetch(`${BASE_URL}/api/auth/login`, {
