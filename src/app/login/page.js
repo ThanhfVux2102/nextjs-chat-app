@@ -1,5 +1,5 @@
 'use client'
-
+import { login } from '@/lib/api'
 import React, { useState } from 'react'
 import './login.css'
 import { useRouter } from 'next/navigation'
@@ -13,21 +13,9 @@ const Login = () => {
 
   const handleLogin = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Gửi cookie
-        body: JSON.stringify({ email, password }),
-      })
-
-      if (!res.ok) {
-        const err = await res.json()
-        setMessage(err.detail || 'Login failed')
-        return
-      }
-
+      const res = await login(email, password) 
       setMessage('Đăng nhập thành công!')
-      router.push('/chat') // load to main page
+      router.push('/chat')
     } catch (err) {
       setMessage('Lỗi kết nối tới máy chủ')
     }
