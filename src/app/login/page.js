@@ -54,7 +54,8 @@ const Login = () => {
 
         <div className="options">
           <label><input type="checkbox" /> Remember me?</label>
-          <a href="#">Forgot Password?</a>
+          <a  href="/forgot-password"
+  style={{ color: '#0070f3', textDecoration: 'underline', cursor: 'pointer' }}>Forgot Password?</a>
         </div>
 
         <button className="btn-black" onClick={handleLogin}>Login Now</button>
