@@ -3,6 +3,7 @@ import { login } from '@/lib/api'
 import React, { useState } from 'react'
 import './login.css'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 const Login = () => {
   const router = useRouter()
@@ -52,18 +53,26 @@ const Login = () => {
           </div>
         </div>
 
-        <div className="options">
-          <label><input type="checkbox" /> Remember me?</label>
-          <a  href="/forgot-password"
-  style={{ color: '#0070f3', textDecoration: 'underline', cursor: 'pointer' }}>Forgot Password?</a>
-        </div>
+      <div className="options">
+        <label><input type="checkbox" /> Remember me?</label>
+        <Link
+          href="/forgot-password"
+          style={{ color: '#0070f3', textDecoration: 'underline', cursor: 'pointer' }}
+        >
+          Forgot Password?
+        </Link>
+      </div>
 
         <button className="btn-black" onClick={handleLogin}>Login Now</button>
 
         {message && <p style={{ color: 'red', marginTop: 10 }}>{message}</p>}
       </div>
+      <div className="image-section">
+      <img src="/background.png" alt="team" />
+    </div>
     </div>
   )
 }
+
 
 export default Login
