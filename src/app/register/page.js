@@ -11,6 +11,7 @@ export default function RegisterPage() {
     password: '',
     confirmPassword: '',
   })
+  const [message, setMessage] = useState('')
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -34,7 +35,7 @@ export default function RegisterPage() {
   }
 
 
-  
+
 return (
   <div style={{ display: 'flex', height: '100vh' }}>
     
