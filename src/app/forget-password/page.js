@@ -28,14 +28,14 @@ const handleSubmit = async (e) => {
         <p style={styles.subtitle}>Please enter your email to reset the password</p>
         
         <form onSubmit={handleSubmit}>
-          <label style={styles.label}>Your Email</label>
+          <label style={{...styles.label, color: 'black'}}>Your Email</label>
           <input
             type="email"
             required
             placeholder="Enter your email" 
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={styles.input}
+            style={{...styles.input, color: 'black'}}
           />
           <button type="submit" style={styles.submitButton}>Reset Password</button>
         </form>
