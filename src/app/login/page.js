@@ -68,6 +68,7 @@ const Login = () => {
         {message && <p style={{ color: 'red', marginTop: 10 }}>{message}</p>}
       </div>
       <div className="image-section">
+      <img src="/background.jpg" alt="team" />
     </div>
     </div>
   )
