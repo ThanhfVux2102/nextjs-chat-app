@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { register } from '@/lib/api'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'  
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -85,6 +86,12 @@ return (
       boxSizing: 'border-box' }} />
         <button type="submit">Register</button>
          {message && <p style={{ color: 'red', marginTop: 10 }}>{message}</p>}
+
+        <p style={{ marginTop: '10px', textAlign: 'center' }}>
+          <Link href="/login" style={{ color: '#15240cff', textDecoration: 'underline' }}>
+            Back to Login
+          </Link>
+        </p>
       </form>
     </div>
   </div>
