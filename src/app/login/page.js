@@ -53,15 +53,15 @@ const Login = () => {
           </div>
         </div>
 
-      <div className="options">
-        <label><input type="checkbox" /> Remember me?</label>
-        <Link
-          href="/forgot-password"
-          style={{ color: '#0070f3', textDecoration: 'underline', cursor: 'pointer' }}
-        >
-          Forgot Password?
-        </Link>
-      </div>
+        <div className="options">
+          <label><input type="checkbox" /> Remember me?</label>
+            <Link
+              href="/forget-password"
+              style={{ color: '#0070f3', textDecoration: 'underline', cursor: 'pointer' }}
+            >
+              Forgot Password?
+            </Link>
+        </div>
 
         <button className="btn-black" onClick={handleLogin}>Login Now</button>
 
