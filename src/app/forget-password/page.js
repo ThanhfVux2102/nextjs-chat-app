@@ -12,7 +12,7 @@ const handleSubmit = async (e) => {
   e.preventDefault()
 
   try {
-    await forgotPassword(email)
+    const resp = await forgotPassword(email)
     alert('Check your email for the reset link.')
     router.push('/login')
   } catch (error) {
