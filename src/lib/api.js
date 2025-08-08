@@ -7,14 +7,24 @@ export async function login(email, password) {
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify({ email, password }),
-  })
+  });
 
-  if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.detail || 'Login failed')
+  const text = await res.text();
+  console.log('Raw response:', text);
+
+  let data = {};
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    throw new Error(`Invalid JSON from server. Raw response: ${text}`);
   }
 
-  return await res.json()
+  if (!res.ok || data.error || data.detail) {
+    const msg = data.detail || data.message || data.error || `Status ${res.status}`;
+    throw new Error(msg);
+  }
+
+  return data;
 }
 
 

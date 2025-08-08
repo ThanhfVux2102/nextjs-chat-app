@@ -14,11 +14,12 @@ const Login = () => {
 
   const handleLogin = async () => {
     try {
-      const res = await login(email, password) 
-      setMessage('Đăng nhập thành công!')
-      router.push('/chat')
+      const res = await login(email, password);
+      setMessage('Đăng nhập thành công!');
+      router.push('/chat');
     } catch (err) {
-      setMessage('Lỗi kết nối tới máy chủ')
+      console.error('Login error', err);
+      setMessage(err.message || 'Lỗi kết nối tới máy chủ');
     }
   }
 
@@ -53,23 +54,23 @@ const Login = () => {
           </div>
         </div>
 
-      <div className="options">
-        <label><input type="checkbox" /> Remember me?</label>
-        <Link
-          href="/forgot-password"
-          style={{ color: '#0070f3', textDecoration: 'underline', cursor: 'pointer' }}
-        >
-          Forgot Password?
-        </Link>
-      </div>
+        <div className="options">
+          <label><input type="checkbox" /> Remember me?</label>
+          <Link
+            href="/forgot-password"
+            style={{ color: '#0070f3', textDecoration: 'underline', cursor: 'pointer' }}
+          >
+            Forgot Password?
+          </Link>
+        </div>
 
         <button className="btn-black" onClick={handleLogin}>Login Now</button>
 
         {message && <p style={{ color: 'red', marginTop: 10 }}>{message}</p>}
       </div>
       <div className="image-section">
-      <img src="/background.png" alt="team" />
-    </div>
+        <img src="/background.png" alt="team" />
+      </div>
     </div>
   )
 }
