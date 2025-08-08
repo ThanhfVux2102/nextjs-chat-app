@@ -14,11 +14,12 @@ const Login = () => {
 
   const handleLogin = async () => {
     try {
-      const res = await login(email, password) 
-      setMessage('Đăng nhập thành công!')
-      router.push('/chat')
+      const res = await login(email, password);
+      setMessage('Đăng nhập thành công!');
+      router.push('/chat');
     } catch (err) {
-      setMessage('Lỗi kết nối tới máy chủ')
+      console.error('Login error', err);
+      setMessage(err.message || 'Lỗi kết nối tới máy chủ');
     }
   }
 
