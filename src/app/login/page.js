@@ -58,9 +58,12 @@ const Login = () => {
           <label><input type="checkbox" /> Remember me?</label>
             <Link
               href="/forget-password"
-              style={{ color: '#0070f3', textDecoration: 'underline', cursor: 'pointer' }}
+              style={{ color: '#15240cff', textDecoration: 'underline', cursor: 'pointer' }}
             >
               Forgot Password?
+            </Link>
+            <Link href="/register" style={{ color: '#15240cff', textDecoration: 'underline' }}>
+              Back to Register
             </Link>
         </div>
 
