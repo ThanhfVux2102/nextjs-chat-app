@@ -56,12 +56,12 @@ const Login = () => {
 
         <div className="options">
           <label><input type="checkbox" /> Remember me?</label>
-          <Link
-            href="/forgot-password"
-            style={{ color: '#0070f3', textDecoration: 'underline', cursor: 'pointer' }}
-          >
-            Forgot Password?
-          </Link>
+            <Link
+              href="/forget-password"
+              style={{ color: '#0070f3', textDecoration: 'underline', cursor: 'pointer' }}
+            >
+              Forgot Password?
+            </Link>
         </div>
 
         <button className="btn-black" onClick={handleLogin}>Login Now</button>
@@ -69,8 +69,8 @@ const Login = () => {
         {message && <p style={{ color: 'red', marginTop: 10 }}>{message}</p>}
       </div>
       <div className="image-section">
-        <img src="/background.png" alt="team" />
-      </div>
+      <img src="/background.jpg" alt="team" />
+    </div>
     </div>
   )
 }
