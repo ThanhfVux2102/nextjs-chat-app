@@ -58,11 +58,31 @@ return (
       }}
     >
       <form onSubmit={handleSubmit} style={{ width: '80%', maxWidth: '400px' }}>
-        <h2 style={{ color: 'white' }}>REGISTER YOUR ACCOUNT</h2>
-        <input name="username" placeholder="Username" onChange={handleChange} value={form.username} required />
-        <input name="email" type="email" placeholder="Email" onChange={handleChange} value={form.email} required />
-        <input name="password" type="password" placeholder="Password" onChange={handleChange} value={form.password} required />
-        <input name="confirmPassword" type="password" placeholder="Confirm Password" onChange={handleChange} value={form.confirmPassword} required />
+        <h2 style={{ color: 'gray' }}>REGISTER YOUR ACCOUNT</h2>
+        <input name="username" placeholder="Username" onChange={handleChange} value={form.username} required  style={{ color: 'black', border: '1px solid black',
+      padding: '8px',
+      borderRadius: '4px',
+      marginBottom: '10px',
+      width: '100%',
+      boxSizing: 'border-box'}}/>
+        <input name="email" type="email" placeholder="Email" onChange={handleChange} value={form.email} required  style={{ color: 'black',  border: '1px solid black',
+      padding: '8px',
+      borderRadius: '4px',
+      marginBottom: '10px',
+      width: '100%',
+      boxSizing: 'border-box' }}/>
+        <input name="password" type="password" placeholder="Password" onChange={handleChange} value={form.password} required  style={{ color: 'black',  border: '1px solid black',
+      padding: '8px',
+      borderRadius: '4px',
+      marginBottom: '10px',
+      width: '100%',
+      boxSizing: 'border-box' }}/>
+        <input name="confirmPassword" type="password" placeholder="Confirm Password" onChange={handleChange} value={form.confirmPassword} required  style={{ color: 'black',  border: '1px solid black',
+      padding: '8px',
+      borderRadius: '4px',
+      marginBottom: '10px',
+      width: '100%',
+      boxSizing: 'border-box' }} />
         <button type="submit">Register</button>
          {message && <p style={{ color: 'red', marginTop: 10 }}>{message}</p>}
       </form>
