@@ -13,9 +13,11 @@ const handleSubmit = async (e) => {
 
   try {
     const resp = await forgotPassword(email)
+    console.log('Forgot password API response:', resp)
     alert('Check your email for the reset link.')
     router.push('/login')
   } catch (error) {
+    console.error('Forgot password API error:', error)
     alert(error.message)
   }
 }
