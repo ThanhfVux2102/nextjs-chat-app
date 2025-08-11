@@ -51,7 +51,7 @@ export default function Sidebar() {
     }
   }
 
-  const displayChats = showUserSearch ? searchResults : chats
+  const displayChats = showUserSearch ? searchResults : (Array.isArray(chats) ? chats : [])
 
   return (
     <div style={{ padding: '10px', height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -85,6 +85,68 @@ export default function Sidebar() {
         }}
       >
         Test API
+      </button>
+
+      {/* WebSocket debug button */}
+      <button 
+        onClick={async () => {
+          try {
+            const websocketService = await import('@/lib/websocket')
+            const status = websocketService.default.getConnectionStatus()
+            console.log('WebSocket status:', status)
+            alert(`WebSocket: ${status.isConnected ? 'Connected' : 'Disconnected'}\nReconnect attempts: ${status.reconnectAttempts}`)
+          } catch (error) {
+            console.error('WebSocket test error:', error)
+            alert('WebSocket test failed: ' + error.message)
+          }
+        }}
+        style={{
+          marginBottom: '15px',
+          marginLeft: '10px',
+          padding: '8px 16px',
+          backgroundColor: '#28a745',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '12px'
+        }}
+      >
+        Test WS
+      </button>
+
+      {/* Test message broadcast button */}
+      <button 
+        onClick={async () => {
+          try {
+            const websocketService = await import('@/lib/websocket')
+            
+            // This is a test - in real implementation you'd get these from context
+            const testChatId = '6898c38b2dbf4c87dd1d1b13'
+            const testUserId = 'test_user_123'
+            const testMessage = 'Test broadcast message ' + new Date().toLocaleTimeString()
+            
+            console.log('🧪 Sending test broadcast message:', { testChatId, testUserId, testMessage })
+            websocketService.default.sendNewMessage(testChatId, testUserId, testMessage)
+            alert('Test message sent! Check console and other windows.')
+          } catch (error) {
+            console.error('Test broadcast error:', error)
+            alert('Test broadcast failed: ' + error.message)
+          }
+        }}
+        style={{
+          marginBottom: '15px',
+          marginLeft: '10px',
+          padding: '8px 16px',
+          backgroundColor: '#ff6b35',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '12px'
+        }}
+      >
+        Test Broadcast
       </button>
       
       {/* Search Bar */}
@@ -183,7 +245,7 @@ export default function Sidebar() {
                   overflow: 'hidden',
                   textOverflow: 'ellipsis'
                 }}>
-                  {item.name || item.username}
+                  {item.name || item.chat_name || item.username || `Chat ${item.chat_id || ''}`}
                 </div>
                 <div style={{ 
                   fontSize: '12px',

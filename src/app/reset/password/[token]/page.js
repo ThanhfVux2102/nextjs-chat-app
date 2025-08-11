@@ -1,13 +1,12 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useState, Suspense } from 'react'
+import { useRouter, useParams } from 'next/navigation'
+import { useState } from 'react'
 import { resetPassword } from '@/lib/api'
 
-function ResetPasswordContent() {
+export default function ResetPasswordCompatPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const token = searchParams.get('token') || ''
+  const { token } = useParams()
 
   const [pw1, setPw1] = useState('')
   const [pw2, setPw2] = useState('')
@@ -33,7 +32,7 @@ function ResetPasswordContent() {
 
     try {
       setLoading(true)
-      const resp = await resetPassword(token, pw1, pw2)
+      await resetPassword(token, pw1, pw2)
       router.push('/login')
     } catch (err) {
       setMsg(err?.message ?? 'Failed to reset password. Try again.')
@@ -73,7 +72,7 @@ function ResetPasswordContent() {
         </form>
         {msg && <p style={styles.error}>{msg}</p>}
         <p style={styles.resend}>
-          Haven't got the email yet?{' '}
+          Haven’t got the email yet?{' '}
           <a href="/forget-password" style={styles.resendLink}>Resend email</a>
         </p>
       </div>
@@ -81,18 +80,10 @@ function ResetPasswordContent() {
   )
 }
 
-export default function ResetPasswordPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <ResetPasswordContent />
-    </Suspense>
-  )
-}
-
 const styles = {
   screen: {
     minHeight: '100vh',
-    background: '#505050', 
+    background: '#505050',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -107,7 +98,6 @@ const styles = {
     boxShadow: '0 10px 30px rgba(0,0,0,.25)',
     position: 'relative'
   },
-
   title: {
     marginTop: 12,
     marginBottom: 6,

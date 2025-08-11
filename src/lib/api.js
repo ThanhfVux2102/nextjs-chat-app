@@ -63,20 +63,37 @@ export async function forgotPassword(email) {
 }
 
 export async function resetPassword(token, newPassword, confirmPassword) {
-  const res = await fetch(`${BASE_URL}/api/auth/reset-password?token=${encodeURIComponent(token)}`, {
+  // Payload used by both endpoint variants
+  const payload = {
+    new_password: newPassword,
+    confirm_password: confirmPassword,
+  }
+
+  // Try path param first: /api/auth/reset-password/{token}
+  let res = await fetch(`${BASE_URL}/api/auth/reset-password/${encodeURIComponent(token)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      new_password: newPassword,
-      confirm_password: confirmPassword,
-    }),
+    body: JSON.stringify(payload),
   });
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.detail || error.msg || 'Failed to reset password');
+  // If backend expects query param, fall back to that when 404
+  if (res.status === 404) {
+    res = await fetch(`${BASE_URL}/api/auth/reset-password?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
   }
-  return await res.json();
+
+  if (!res.ok) {
+    let errorText = ''
+    try {
+      const error = await res.json()
+      errorText = error.detail || error.msg || ''
+    } catch {}
+    throw new Error(errorText || `Failed to reset password (HTTP ${res.status})`)
+  }
+  return await res.json()
 }
 
 // Check if user has valid session
@@ -153,8 +170,29 @@ export async function getChatList(cursor = null) {
       throw new Error(`Invalid JSON response: ${responseText}`)
     }
 
-    console.log('Parsed chat list data:', data)
-    return data
+    // Normalize backend response to a consistent shape for the UI
+    // Prefer `data.chats`; fallback to `data.items` from pagination API
+    let chatsRaw = Array.isArray(data.chats) ? data.chats : (Array.isArray(data.items) ? data.items : [])
+    const chats = chatsRaw.map((item) => {
+      // Support both shapes seamlessly
+      const chatId = item.chat_id || item.id
+      const name = item.name || item.chat_name || item.username || 'Unknown'
+      const lastMessage = item.last_message || item.lastMessage || ''
+      return {
+        ...item,
+        chat_id: chatId,
+        name,
+        last_message: lastMessage,
+      }
+    })
+
+    const normalized = {
+      chats,
+      next_cursor: data.next_cursor ?? data.next_page ?? null,
+    }
+
+    console.log('Normalized chat list:', normalized)
+    return normalized
   } catch (error) {
     console.error('Error in getChatList:', error)
     throw error

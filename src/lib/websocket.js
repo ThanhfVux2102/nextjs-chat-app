@@ -11,12 +11,13 @@ class WebSocketService {
 
   connect() {
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'wss://chat-app-backend-3vsf.onrender.com/ws';
+    console.log('🔌 Attempting WebSocket connection to:', wsUrl);
     
     try {
       this.ws = new WebSocket(wsUrl);
       
       this.ws.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('✅ WebSocket connected successfully to:', wsUrl);
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.notifyConnectionHandlers('connected');
@@ -25,26 +26,27 @@ class WebSocketService {
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          console.log('📨 WebSocket received message:', data);
           this.handleMessage(data);
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+          console.error('❌ Error parsing WebSocket message:', error);
         }
       };
 
-      this.ws.onclose = () => {
-        console.log('WebSocket disconnected');
+      this.ws.onclose = (event) => {
+        console.log('🔌 WebSocket disconnected:', event.code, event.reason);
         this.isConnected = false;
         this.notifyConnectionHandlers('disconnected');
         this.attemptReconnect();
       };
 
       this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        console.error('❌ WebSocket error:', error);
         this.notifyConnectionHandlers('error', error);
       };
 
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
+      console.error('❌ Failed to create WebSocket connection:', error);
     }
   }
 
@@ -73,19 +75,22 @@ class WebSocketService {
   sendMessage(type, data) {
     if (this.isConnected && this.ws) {
       const message = { type, ...data };
+      console.log('📤 WebSocket sending message:', message);
       this.ws.send(JSON.stringify(message));
     } else {
-      console.error('WebSocket not connected');
+      console.error('❌ WebSocket not connected - cannot send message');
     }
   }
 
   // Load chat messages
   loadChat(chatId) {
+    console.log('📤 Loading chat messages for chat_id:', chatId);
     this.sendMessage('load_chat', { chat_id: chatId });
   }
 
   // Send new message
   sendNewMessage(chatId, senderId, content) {
+    console.log('📤 Sending new message:', { chatId, senderId, content });
     this.sendMessage('new_message', {
       chat_id: chatId,
       data: {
