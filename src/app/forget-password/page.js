@@ -5,19 +5,24 @@ import { forgotPassword } from '@/lib/api'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
   const router = useRouter()
 
 const handleSubmit = async (e) => {
   e.preventDefault()
+  setMessage('')
+  setError('')
+  setLoading(true)
 
   try {
-    const resp = await forgotPassword(email)
-    console.log('Forgot password API response:', resp)
-    alert('Check your email for the reset link.')
-    router.push('/login')
-  } catch (error) {
-    console.error('Forgot password API error:', error)
-    alert(error.message)
+      await forgotPassword(email)
+      setMessage('Check your email for the reset link.')
+    } catch (err) {
+      setError(err?.message || 'Failed to send reset link')
+    } finally {
+      setLoading(false)
   }
 }
 
@@ -40,6 +45,9 @@ const handleSubmit = async (e) => {
           />
           <button type="submit" style={styles.submitButton}>Reset Password</button>
         </form>
+        {message && <p style={styles.success}>{message}</p>}
+        {error && <p style={styles.error}>{error}</p>}
+        <p style={styles.minitext}>Already remember your password? <a href="/login">Back to login</a></p>
       </div>
     </div>
   )
