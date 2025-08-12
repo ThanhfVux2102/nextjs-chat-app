@@ -22,12 +22,9 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // First check localStorage
         const savedUser = localStorage.getItem('chatUser')
         if (savedUser) {
           const userData = JSON.parse(savedUser)
-          
-          // Then validate with backend
           try {
             const sessionData = await checkSession()
             if (sessionData && sessionData.user) {
@@ -43,7 +40,7 @@ export function AuthProvider({ children }) {
             }
           } catch (error) {
             console.error('Session validation failed:', error)
-            // Backend check failed, clear local data
+            
             localStorage.removeItem('chatUser')
             setUser(null)
             setIsAuthenticated(false)

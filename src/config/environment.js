@@ -15,7 +15,6 @@ export const config = {
     SEARCH_USERS: '/api/users/search'
   },
   
-  // WebSocket message types
   WS_MESSAGE_TYPES: {
     LOAD_CHAT: 'load_chat',
     NEW_MESSAGE: 'new_message',

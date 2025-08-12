@@ -42,6 +42,19 @@ export default function ChatBox() {
 
   const messages = currentChat ? getMessagesForUser(currentChat.chat_id || currentChat.id) : []
 
+  // Debug: Log message filtering
+  console.log('🔍 ChatBox Debug:')
+  console.log('- Current Chat ID:', currentChat?.chat_id || currentChat?.id)
+  console.log('- Current User ID:', currentUser?.id)
+  console.log('- All Messages:', messages)
+  console.log('- Messages Count:', messages.length)
+  console.log('- Messages Details:', messages.map(msg => ({
+    id: msg.id,
+    from: msg.from,
+    text: msg.text,
+    chat_id: msg.chat_id
+  })))
+
   if (!currentChat) {
     return (
       <div style={{ 
@@ -107,15 +120,39 @@ export default function ChatBox() {
         backgroundColor: '#f5f5f5'
       }}>
         {messages.length > 0 ? (
-          messages.map((msg, i) => (
-            <MessageBubble 
-              key={msg.id || i} 
-              from={msg.from} 
-              text={msg.text}
-              timestamp={msg.timestamp}
-              isOwn={msg.from === currentUser?.id}
-            />
-          ))
+          (() => {
+            console.log('🔍 Rendering messages:', messages.length, 'messages');
+            console.log('🔍 Messages array:', messages);
+            
+            return messages.map((msg, i) => {
+              // Convert both to strings to handle type mismatch
+              const msgFromStr = String(msg.from);
+              const currentUserIdStr = String(currentUser?.id);
+              const isOwn = msgFromStr === currentUserIdStr;
+              
+              console.log('🔍 MessageBubble Debug:', {
+                messageId: msg.id,
+                msgFrom: msg.from,
+                msgFromType: typeof msg.from,
+                msgFromStr: msgFromStr,
+                currentUserId: currentUser?.id,
+                currentUserIdType: typeof currentUser?.id,
+                currentUserIdStr: currentUserIdStr,
+                isOwn: isOwn,
+                text: msg.text
+              });
+              
+              return (
+                <MessageBubble 
+                  key={msg.id || i} 
+                  from={msg.from} 
+                  text={msg.text}
+                  timestamp={msg.timestamp}
+                  isOwn={isOwn}
+                />
+              );
+            });
+          })()
         ) : (
           <div style={{ 
             textAlign: 'center', 

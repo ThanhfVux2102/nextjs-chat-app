@@ -5,7 +5,7 @@ import { useChat } from '@/contexts/ChatContext'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function Sidebar() {
-  const { chats, searchUsers, setCurrentChatUser, loading, loadMoreChats, nextCursor, createChat } = useChat() // Updated context destructuring
+  const { chats, searchUsers, setCurrentChatUser, loading, loadMoreChats, nextCursor, createChat, currentChat } = useChat() // Updated context destructuring
   const { user: currentUser, isAuthenticated } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([]) // New state for search results
@@ -148,6 +148,317 @@ export default function Sidebar() {
       >
         Test Broadcast
       </button>
+
+      {/* Test Current Chat button */}
+      <button 
+        onClick={async () => {
+          try {
+            const websocketService = await import('@/lib/websocket')
+            const testMessage = `Test current chat message ${new Date().toLocaleTimeString()}`
+            
+            if (!currentChat?.chat_id) {
+              alert('No chat selected! Please select a chat first.')
+              return
+            }
+            
+            if (!currentUser?.id) {
+              alert('No user logged in!')
+              return
+            }
+            
+            console.log('🧪 Sending test to current chat:', {
+              chatId: currentChat.chat_id,
+              userId: currentUser.id,
+              message: testMessage
+            })
+            
+            websocketService.default.sendNewMessage(currentChat.chat_id, currentUser.id, testMessage)
+          } catch (error) {
+            console.error('Test current chat error:', error)
+            alert('Test current chat failed: ' + error.message)
+          }
+        }}
+        style={{
+          marginBottom: '15px',
+          marginLeft: '10px',
+          padding: '8px 16px',
+          backgroundColor: '#17a2b8',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '12px'
+        }}
+      >
+        Test Current Chat
+      </button>
+
+      {/* Simulate Backend Broadcast Test */}
+      <button 
+        onClick={async () => {
+          try {
+            const websocketService = await import('@/lib/websocket')
+            
+            if (!currentChat?.chat_id) {
+              alert('No chat selected! Please select a chat first.')
+              return
+            }
+            
+            // Simulate what backend SHOULD send to other users
+            const simulatedMessage = {
+              type: "personal_message",
+              data: {
+                id: Date.now(),
+                sender_id: "other_user_123",
+                content: `Simulated broadcast message ${new Date().toLocaleTimeString()}`,
+                chat_id: currentChat.chat_id,
+                timestamp: new Date().toISOString()
+              }
+            }
+            
+            console.log('🧪 Simulating backend broadcast:', simulatedMessage)
+            
+            // Manually trigger the message handler
+            const event = new MessageEvent('message', {
+              data: JSON.stringify(simulatedMessage)
+            })
+            
+            // This simulates what should happen when backend broadcasts
+            websocketService.default.ws?.onmessage?.(event)
+            
+            alert('Simulated broadcast sent! Check if message appears in chat.')
+          } catch (error) {
+            console.error('Simulate broadcast error:', error)
+            alert('Simulate broadcast failed: ' + error.message)
+          }
+        }}
+        style={{
+          marginBottom: '15px',
+          marginLeft: '10px',
+          padding: '8px 16px',
+          backgroundColor: '#dc3545',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '12px'
+        }}
+      >
+        Simulate Broadcast
+      </button>
+
+      {/* Test Backend Broadcasting */}
+      <button 
+        onClick={async () => {
+          try {
+            const websocketService = await import('@/lib/websocket')
+            
+            if (!currentChat?.chat_id) {
+              alert('No chat selected! Please select a chat first.')
+              return
+            }
+            
+            // Simulate backend broadcasting to ALL users in chat
+            const allInstances = websocketService.default.getAllInstances()
+            const otherUsers = Array.from(allInstances.keys()).filter(id => id !== currentUser?.id)
+            
+            console.log('🧪 Testing backend broadcasting:')
+            console.log('- Current User:', currentUser?.id)
+            console.log('- Other Users:', otherUsers)
+            console.log('- Chat ID:', currentChat.chat_id)
+            
+            // Simulate backend sending to each other user
+            otherUsers.forEach(otherUserId => {
+              const simulatedMessage = {
+                type: "personal_message",
+                data: {
+                  id: Date.now() + Math.random(),
+                  sender_id: currentUser?.id,
+                  content: `Backend broadcast test ${new Date().toLocaleTimeString()}`,
+                  chat_id: currentChat.chat_id,
+                  timestamp: new Date().toISOString()
+                }
+              }
+              
+              console.log(`📤 Simulating backend sending to user ${otherUserId}:`, simulatedMessage)
+              
+              // Get the other user's WebSocket instance
+              const otherInstance = websocketService.default.getInstance(otherUserId)
+              if (otherInstance && otherInstance.ws) {
+                const event = new MessageEvent('message', {
+                  data: JSON.stringify(simulatedMessage)
+                })
+                otherInstance.ws.onmessage(event)
+              }
+            })
+            
+            alert(`Backend broadcast test sent to ${otherUsers.length} other users!`)
+          } catch (error) {
+            console.error('Backend broadcast test error:', error)
+            alert('Backend broadcast test failed: ' + error.message)
+          }
+        }}
+        style={{
+          marginBottom: '15px',
+          marginLeft: '10px',
+          padding: '8px 16px',
+          backgroundColor: '#fd7e14',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '12px'
+        }}
+      >
+        Test Backend Broadcast
+      </button>
+
+      {/* Test Real Backend Broadcasting */}
+      <button 
+        onClick={async () => {
+          try {
+            const websocketService = await import('@/lib/websocket')
+            
+            if (!currentChat?.chat_id) {
+              alert('No chat selected! Please select a chat first.')
+              return
+            }
+            
+            if (!currentUser?.id) {
+              alert('No user logged in!')
+              return
+            }
+            
+            console.log('🧪 Testing REAL backend broadcasting:')
+            console.log('- Current User:', currentUser?.id)
+            console.log('- Chat ID:', currentChat.chat_id)
+            console.log('- Message: "Real backend broadcast test"')
+            
+            // Send a real message through WebSocket to test backend
+            websocketService.default.sendNewMessage(
+              currentChat.chat_id, 
+              currentUser.id, 
+              `Real backend broadcast test ${new Date().toLocaleTimeString()}`
+            )
+            
+            alert('Real backend broadcast test sent! Check if other users receive it.')
+          } catch (error) {
+            console.error('Real backend broadcast test error:', error)
+            alert('Real backend broadcast test failed: ' + error.message)
+          }
+        }}
+        style={{
+          marginBottom: '15px',
+          marginLeft: '10px',
+          padding: '8px 16px',
+          backgroundColor: '#20c997',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '12px'
+        }}
+      >
+        Test Real Backend
+      </button>
+
+      {/* Test WebSocket Instance */}
+      <button 
+        onClick={async () => {
+          try {
+            const websocketService = await import('@/lib/websocket')
+            
+            console.log('🔍 WebSocket Instance Debug:')
+            console.log('- Current User:', currentUser?.id)
+            console.log('- All Instances:', websocketService.default.getAllInstances())
+            
+            const allStatuses = websocketService.default.getConnectionStatus()
+            console.log('- All Statuses:', allStatuses)
+            
+            const currentInstance = websocketService.default.getInstance(currentUser?.id)
+            console.log('- Current Instance:', currentInstance)
+            
+            let statusText = `WebSocket Instance Debug:\n- Current User: ${currentUser?.id}\n\nAll Instances:\n`
+            
+            Object.entries(allStatuses).forEach(([userId, status]) => {
+              statusText += `- User ${userId}: ${status.isConnected ? 'Connected' : 'Disconnected'}\n`
+            })
+            
+            statusText += `\nTotal Instances: ${Object.keys(allStatuses).length}`
+            
+            alert(statusText)
+          } catch (error) {
+            console.error('WebSocket instance test error:', error)
+            alert('WebSocket instance test failed: ' + error.message)
+          }
+        }}
+        style={{
+          marginBottom: '15px',
+          marginLeft: '10px',
+          padding: '8px 16px',
+          backgroundColor: '#6f42c1',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '12px'
+        }}
+      >
+        Test WS Instance
+      </button>
+
+      {/* Debug WebSocket connection button */}
+      <button 
+        onClick={async () => {
+          try {
+            const websocketService = await import('@/lib/websocket')
+            const status = websocketService.default.getConnectionStatus()
+            
+            console.log('🔍 WebSocket Debug Info:')
+            console.log('- Connection Status:', status)
+            console.log('- WebSocket URL:', process.env.NEXT_PUBLIC_WS_URL || 'wss://chat-app-backend-3vsf.onrender.com/ws')
+            console.log('- Current User:', currentUser?.id || 'No user')
+            console.log('- Current Chat:', currentChat?.chat_id || 'No chat selected')
+            
+            alert(`WebSocket Debug:\n- Connected: ${status.isConnected}\n- URL: ${process.env.NEXT_PUBLIC_WS_URL || 'wss://chat-app-backend-3vsf.onrender.com/ws'}\n- User: ${currentUser?.id || 'None'}\n- Chat: ${currentChat?.chat_id || 'None'}`)
+          } catch (error) {
+            console.error('Debug error:', error)
+            alert('Debug failed: ' + error.message)
+          }
+        }}
+        style={{
+          marginBottom: '15px',
+          marginLeft: '10px',
+          padding: '8px 16px',
+          backgroundColor: '#6c757d',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '12px'
+        }}
+      >
+        Debug WS
+      </button>
+
+      {/* Current Chat Debug Info */}
+      {currentChat && (
+        <div style={{
+          marginBottom: '15px',
+          padding: '10px',
+          backgroundColor: '#e3f2fd',
+          border: '2px solid #007AFF',
+          borderRadius: '8px',
+          fontSize: '12px'
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
+            🎯 Currently Selected Chat:
+          </div>
+          <div>ID: {currentChat.chat_id}</div>
+          <div>Name: {currentChat.name || currentChat.chat_name || currentChat.username}</div>
+          <div>User: {currentUser?.id || 'None'}</div>
+        </div>
+      )}
       
       {/* Search Bar */}
       <input
@@ -220,10 +531,20 @@ export default function Sidebar() {
                 cursor: 'pointer',
                 borderRadius: '8px',
                 transition: 'background-color 0.2s',
-                marginBottom: '5px'
+                marginBottom: '5px',
+                backgroundColor: currentChat?.chat_id === (item.chat_id || item.id) ? '#e3f2fd' : 'transparent',
+                border: currentChat?.chat_id === (item.chat_id || item.id) ? '2px solid #007AFF' : '2px solid transparent'
               }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#f5f5f5'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+              onMouseEnter={(e) => {
+                if (currentChat?.chat_id !== (item.chat_id || item.id)) {
+                  e.target.style.backgroundColor = '#f5f5f5'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (currentChat?.chat_id !== (item.chat_id || item.id)) {
+                  e.target.style.backgroundColor = 'transparent'
+                }
+              }}
             >
               <img 
                 src={item.avatar || '/avatars/default.jpg'} 
