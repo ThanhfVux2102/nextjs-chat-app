@@ -1,6 +1,4 @@
-// components/Sidebar.js
 
-//import Sidebar from '../../components/Sidebar'
 import ChatBox from './ChatBox'
 import UserPanel from './UserPanel'
 
