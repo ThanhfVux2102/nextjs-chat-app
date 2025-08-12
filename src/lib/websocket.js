@@ -131,6 +131,105 @@ class WebSocketService {
     };
   }
 }
-const websocketService = new WebSocketService();
+const websocketService = {
+  connect: (userId, url) => getWebSocketInstance(userId).connect(url),
+  disconnect: (userId) => getWebSocketInstance(userId).disconnect(),
+  send: (userId, type, payload) => getWebSocketInstance(userId).send(type, payload),
+  on: (userId, event, handler) => getWebSocketInstance(userId).on(event, handler),
+
+  // 🔹 mới: đăng ký handler trạng thái cho tất cả instance hiện có
+  onConnection: (event, handler) => {
+    websocketInstances.forEach((instance) => {
+      instance.onConnection(event, handler);
+    });
+  },
+
+  // 🔹 mới: xem trạng thái mọi kết nối
+  getConnectionStatus: () => {
+    const statuses = {};
+    websocketInstances.forEach((instance, userId) => {
+      statuses[userId] = instance.getConnectionStatus();
+    });
+    return statuses;
+  },
+
+  // 🔹 tiện debug
+  getInstance: (userId) => getWebSocketInstance(userId),
+  getAllInstances: () => websocketInstances,
+};
+
+
+
+
+const websocketInstances = new Map();
+
+function getWebSocketInstance(userId) {
+  let inst = websocketInstances.get(userId);
+  if (inst) return inst;
+
+  // tạo instance mới
+  const listeners = new Map();           // 'message' | 'error' | ... => Set<fn>
+  const connectListeners = new Map();    // 'open' | 'close' | 'error' => Set<fn>
+  let socket = null;
+  let status = { connected: false, readyState: 0, lastError: null };
+
+  const instApi = {
+    connect: (url) => {
+      if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return;
+      socket = new WebSocket(url);
+      status.readyState = socket.readyState;
+
+      socket.addEventListener('open', (ev) => {
+        status.connected = true;
+        status.readyState = socket.readyState;
+        (connectListeners.get('open') || new Set()).forEach(fn => fn(ev));
+      });
+
+      socket.addEventListener('close', (ev) => {
+        status.connected = false;
+        status.readyState = socket.readyState;
+        (connectListeners.get('close') || new Set()).forEach(fn => fn(ev));
+      });
+
+      socket.addEventListener('error', (ev) => {
+        status.lastError = ev;
+        (listeners.get('error') || new Set()).forEach(fn => fn(ev));
+        (connectListeners.get('error') || new Set()).forEach(fn => fn(ev));
+      });
+
+      socket.addEventListener('message', (ev) => {
+        (listeners.get('message') || new Set()).forEach(fn => fn(ev));
+      });
+    },
+
+    disconnect: () => { if (socket) socket.close(); },
+
+    send: (type, payload) => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type, payload }));
+      }
+    },
+
+    on: (event, handler) => {
+      if (!listeners.has(event)) listeners.set(event, new Set());
+      listeners.get(event).add(handler);
+      return () => listeners.get(event)?.delete(handler);
+    },
+
+    // 🔹 mới: lắng nghe trạng thái kết nối (open/close/error)
+    onConnection: (event, handler) => {
+      if (!connectListeners.has(event)) connectListeners.set(event, new Set());
+      connectListeners.get(event).add(handler);
+      return () => connectListeners.get(event)?.delete(handler);
+    },
+
+    // 🔹 mới: trả về trạng thái hiện tại
+    getConnectionStatus: () => ({ ...status }),
+  };
+
+  websocketInstances.set(userId, instApi);
+  return instApi;
+}
+
 
 export default websocketService;
