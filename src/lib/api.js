@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://chat-app-backend-3vsf.onrender.com';
 
 
 export async function login(email, password) {
@@ -63,18 +63,141 @@ export async function forgotPassword(email) {
 }
 
 export async function resetPassword(token, newPassword, confirmPassword) {
-  const res = await fetch(`${BASE_URL}/api/auth/reset-password?token=${encodeURIComponent(token)}`, {
+ const payload = {
+    new_password: newPassword,
+    confirm_password: confirmPassword,
+  };
+
+
+  let res = await fetch(`${BASE_URL}/api/auth/reset-password/${encodeURIComponent(token)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      new_password: newPassword,
-      confirm_password: confirmPassword,
-    }),
+    body: JSON.stringify(payload),
   });
+
+ 
+  if (res.status === 404) {
+    res = await fetch(`${BASE_URL}/api/auth/reset-password?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  }
 
   if (!res.ok) {
     const error = await res.json();
     throw new Error(error.detail || error.msg || 'Failed to reset password');
   }
+  return await res.json();
+}
+
+export async function checkSession() {
+  try {
+    const res = await fetch(`${BASE_URL}/api/auth/me`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (res.ok) {
+      return await res.json();
+    } else {
+      return null;
+    }
+  } catch (error) {
+    return null;
+  }
+}
+
+
+export async function getChatList(cursor = null) {
+  const url = cursor 
+    ? `${BASE_URL}/api/chat/me/view?cursor=${encodeURIComponent(cursor)}`
+    : `${BASE_URL}/api/chat/me/view`;
+  
+  const res = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    }
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    let errorData = {};
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {}
+    throw new Error(errorData.detail || errorData.message || `HTTP ${res.status}: ${res.statusText}`);
+  }
+
+  const data = await res.json();
+  let chatsRaw = Array.isArray(data.chats) ? data.chats : (Array.isArray(data.items) ? data.items : []);
+  const chats = chatsRaw.map((item) => ({
+    ...item,
+    chat_id: item.chat_id || item.id,
+    name: item.name || item.chat_name || item.username || 'Unknown',
+    last_message: item.last_message || item.lastMessage || '',
+  }));
+
+  return {
+    chats,
+    next_cursor: data.next_cursor ?? data.next_page ?? null,
+  };
+}
+
+
+export async function getMessageHistory(cursor = null) {
+  const url = cursor 
+    ? `${BASE_URL}/api/message/history?cursor=${encodeURIComponent(cursor)}`
+    : `${BASE_URL}/api/message/history`;
+  
+  const res = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to fetch message history');
+  }
+
+  return await res.json();
+}
+
+
+export async function createPersonalChat(userId) {
+  const res = await fetch(`${BASE_URL}/api/chat/create/personal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ user_id: userId }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to create personal chat');
+  }
+
+  return await res.json();
+}
+
+
+export async function searchUsers(query) {
+  const res = await fetch(`${BASE_URL}/api/users/search?q=${encodeURIComponent(query)}`, {
+    method: 'GET',
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to search users');
+  }
+
   return await res.json();
 }
