@@ -1,17 +1,43 @@
-// components/MessageBubble.js
-export default function MessageBubble({ from, text }) {
-  const isMe = from === 'me'
+'use client'
+
+export default function MessageBubble({ from, text, timestamp, isOwn }) {
+  const formatTime = (timestamp) => {
+    if (!timestamp) return ''
+    const date = new Date(timestamp)
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
   return (
-    <div style={{ textAlign: isMe ? 'right' : 'left', margin: '8px 0' }}>
-      <span style={{
-        display: 'inline-block',
-        backgroundColor: isMe ? '#cfe9ba' : '#f1f0f0',
-        padding: '10px 14px',
-        borderRadius: '20px',
+    <div style={{
+      display: 'flex',
+      justifyContent: isOwn ? 'flex-end' : 'flex-start',
+      marginBottom: '12px'
+    }}>
+      <div style={{
         maxWidth: '70%',
+        padding: '12px 16px',
+        borderRadius: '18px',
+        backgroundColor: isOwn ? '#007AFF' : '#E5E5EA',
+        color: isOwn ? 'white' : 'black',
+        fontSize: '14px',
+        lineHeight: '1.4',
+        wordWrap: 'break-word',
+        position: 'relative'
       }}>
-        {text}
-      </span>
+        <div style={{ marginBottom: '4px' }}>
+          {text}
+        </div>
+        {timestamp && (
+          <div style={{
+            fontSize: '11px',
+            opacity: 0.7,
+            textAlign: isOwn ? 'right' : 'left',
+            marginTop: '4px'
+          }}>
+            {formatTime(timestamp)}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
