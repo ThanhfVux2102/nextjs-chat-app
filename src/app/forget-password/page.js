@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Archivo_Black } from 'next/font/google'
 import { forgotPassword } from '@/lib/api'
 
 export default function ForgotPasswordPage() {
