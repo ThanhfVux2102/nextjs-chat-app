@@ -1,8 +1,8 @@
 // components/UserPanel.js
+import { useAuth } from '@/contexts/AuthContext'
+
 export default function UserPanel({ toggleRightPanel, isRightPanelOpen }) {
-  const media = [
-    '/media/img1.jpg', '/media/img2.jpg', '/media/img3.jpg', '/media/img4.jpg'
-  ]
+  const { user: currentUser } = useAuth()
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -17,7 +17,7 @@ export default function UserPanel({ toggleRightPanel, isRightPanelOpen }) {
       }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 'bold', fontSize: '16px' }}>
-            Esther Howard
+            {currentUser?.username || currentUser?.name || 'User'}
           </div>
           <div style={{ fontSize: '12px', color: '#4CAF50' }}>
             ● Online
@@ -51,18 +51,16 @@ export default function UserPanel({ toggleRightPanel, isRightPanelOpen }) {
 
       {/* Content */}
       <div style={{ padding: '20px', flex: 1 }}>
-        <img src="/avatars/esther.jpg" style={{ width: 80, height: 80, borderRadius: '50%' }} />
-        <h3>Esther Howard</h3>
+        <img 
+          src={currentUser?.avatar || '/default-avatar.svg'} 
+          style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover' }} 
+          alt={currentUser?.username || currentUser?.name || 'User'}
+        />
+        <h3>{currentUser?.username || currentUser?.name || 'User'}</h3>
         <p style={{ color: 'green' }}>● Online</p>
-
-        <div style={{ marginTop: 30 }}>
-          <h4>Media</h4>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-            {media.map((m, i) => (
-              <img key={i} src={m} style={{ width: 60, height: 60, borderRadius: 8, objectFit: 'cover' }} />
-            ))}
-          </div>
-        </div>
+        <p style={{ color: '#666', fontSize: '14px', marginTop: '5px' }}>
+          {currentUser?.email || 'No email available'}
+        </p>
       </div>
     </div>
   )

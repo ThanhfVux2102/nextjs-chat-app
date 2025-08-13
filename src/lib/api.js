@@ -172,6 +172,10 @@ export async function getMessageHistory(cursor = null) {
 
 
 export async function createPersonalChat(userId) {
+  console.log('🔍 API: createPersonalChat called with userId:', userId)
+  console.log('🔍 API: Making request to:', `${BASE_URL}/api/chat/create/personal`)
+  console.log('🔍 API: Request body:', { user_id: userId })
+  
   const res = await fetch(`${BASE_URL}/api/chat/create/personal`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -179,25 +183,92 @@ export async function createPersonalChat(userId) {
     body: JSON.stringify({ user_id: userId }),
   });
 
+  console.log('🔍 API: createPersonalChat response status:', res.status)
+  console.log('🔍 API: createPersonalChat response ok:', res.ok)
+
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.detail || 'Failed to create personal chat');
+    const errorText = await res.text();
+    console.error('🔍 API: createPersonalChat failed with error text:', errorText)
+    let errorData = {};
+    try {
+      errorData = JSON.parse(errorText);
+      console.error('🔍 API: Parsed error data:', errorData)
+    } catch (e) {
+      console.error('🔍 API: Could not parse error as JSON:', e)
+    }
+    
+    // For 422 errors, the chat might already exist - let's try to find it
+    if (res.status === 422) {
+      console.log('🔍 API: 422 error - chat might already exist, trying to find existing chat')
+      // We'll handle this in the ChatContext
+      throw new Error('CHAT_ALREADY_EXISTS')
+    }
+    
+    throw new Error(errorData.detail || errorData.message || `Failed to create personal chat (${res.status})`);
   }
 
-  return await res.json();
+  const data = await res.json();
+  console.log('🔍 API: createPersonalChat successful, data:', data)
+  return data;
 }
 
-
-export async function searchUsers(query) {
-  const res = await fetch(`${BASE_URL}/api/users/search?q=${encodeURIComponent(query)}`, {
+export async function getCurrentUser() {
+  console.log('🔍 API: Getting current user from /api/auth/me')
+  
+  const res = await fetch(`${BASE_URL}/api/auth/me`, {
     method: 'GET',
     credentials: 'include',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    }
   });
 
+  console.log('🔍 API: getCurrentUser response status:', res.status)
+  console.log('🔍 API: getCurrentUser response ok:', res.ok)
+
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.detail || 'Failed to search users');
+    const errorText = await res.text();
+    console.error('🔍 API: getCurrentUser failed with error text:', errorText)
+    let errorData = {};
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {}
+    throw new Error(errorData.detail || errorData.message || 'Failed to get current user');
   }
 
-  return await res.json();
+  const data = await res.json();
+  console.log('🔍 API: getCurrentUser successful, data:', data)
+  return data;
+}
+
+export async function searchUsers(query) {
+  console.log('🔍 API: searchUsers called with query:', query)
+  console.log('🔍 API: Making request to:', `${BASE_URL}/api/auth/users?q=${encodeURIComponent(query)}`)
+  
+  const res = await fetch(`${BASE_URL}/api/auth/users?q=${encodeURIComponent(query)}`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    }
+  });
+
+  console.log('🔍 API: Response status:', res.status)
+  console.log('🔍 API: Response ok:', res.ok)
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('🔍 API: Search failed with error text:', errorText)
+    let errorData = {};
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {}
+    throw new Error(errorData.detail || errorData.message || 'Failed to search users');
+  }
+
+  const data = await res.json();
+  console.log('🔍 API: Search successful, data:', data)
+  return data;
 }
