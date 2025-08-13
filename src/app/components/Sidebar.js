@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useChat } from '@/contexts/ChatContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
 
 export default function Sidebar() {
   const {
@@ -16,12 +17,14 @@ export default function Sidebar() {
     currentChat,
   } = useChat()
 
-  const { user: currentUser } = useAuth()
+  const { user: currentUser, logout } = useAuth()
+  const router = useRouter()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [showUserSearch, setShowUserSearch] = useState(false)
   const [searching, setSearching] = useState(false)
+  const [showSettingsDropdown, setShowSettingsDropdown] = useState(false)
 
   const handleSearch = async (query) => {
     setSearchQuery(query)
@@ -62,11 +65,153 @@ export default function Sidebar() {
     }
   }
 
+  const handleLogout = () => {
+    logout()
+    router.push('/login')
+  }
+
+  const handleResetPassword = () => {
+    router.push('/reset-password')
+  }
+
+  const handleAddClick = () => {
+    setShowUserSearch(true)
+    setSearchQuery('')
+  }
+
   const displayChats = showUserSearch ? searchResults : (Array.isArray(chats) ? chats : [])
 
   return (
     <div style={{ padding: 10, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <h3 style={{ fontSize: 30, fontWeight: 700, marginBottom: 20 }}>Messages</h3>
+      {/* Header with Messages title and buttons */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: 20,
+        position: 'relative'
+      }}>
+        <h3 style={{ fontSize: 30, fontWeight: 700, margin: 0 }}>Messages</h3>
+        
+        {/* Buttons container */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {/* Add button */}
+          <button
+            onClick={handleAddClick}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              border: 'none',
+              backgroundColor: '#007AFF',
+              color: 'white',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 18,
+              fontWeight: 'bold',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0056b3'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#007AFF'}
+          >
+            +
+          </button>
+          
+          {/* Settings button with dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowSettingsDropdown(!showSettingsDropdown)}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                border: 'none',
+                backgroundColor: '#f0f0f0',
+                color: '#333',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 16,
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+            >
+              ⚙️
+            </button>
+            
+            {/* Settings dropdown */}
+            {showSettingsDropdown && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: 8,
+                backgroundColor: 'white',
+                border: '1px solid #ddd',
+                borderRadius: 8,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                zIndex: 1000,
+                minWidth: 150
+              }}>
+                <button
+                  onClick={handleResetPassword}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    color: '#333',
+                    borderBottom: '1px solid #eee'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  Reset Password
+                </button>
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    color: '#d32f2f'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#ffebee'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Click outside to close dropdown */}
+      {showSettingsDropdown && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 999
+          }}
+          onClick={() => setShowSettingsDropdown(false)}
+        />
+      )}
 
       <input
         type="text"
