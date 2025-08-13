@@ -263,7 +263,7 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* List */}
+      
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading && !showUserSearch ? (
           <div style={{ textAlign: 'center', padding: 20, color: '#666' }}>Loading chats...</div>
@@ -294,7 +294,7 @@ export default function Sidebar() {
                 }}
               >
                 <img
-                  src={item.avatar || '/avatars/default.jpg'}
+                  src={item.avatar || '/default-avatar.svg'}
                   alt={item.name || item.username || 'chat'}
                   style={{ width: 45, height: 45, borderRadius: '50%', objectFit: 'cover' }}
                 />
@@ -375,7 +375,7 @@ export default function Sidebar() {
         <div style={{ padding: '15px 10px', borderTop: '1px solid #eee', marginTop: 'auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <img
-              src={currentUser.avatar || '/avatars/default.jpg'}
+              src={currentUser.avatar || '/default-avatar.svg'}
               alt="Current user"
               style={{ width: 35, height: 35, borderRadius: '50%', objectFit: 'cover' }}
             />

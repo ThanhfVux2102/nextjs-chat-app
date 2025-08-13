@@ -64,7 +64,7 @@ export default function ChatBox() {
         color: '#666'
       }}>
         <div style={{ fontSize: '24px', marginBottom: '10px' }}>
-          👋 Welcome to F.E Chat!
+          
         </div>
         <div style={{ fontSize: '16px', textAlign: 'center' }}>
           Select a chat from the sidebar to start messaging
@@ -85,7 +85,7 @@ export default function ChatBox() {
         gap: '12px'
       }}>
         <img 
-          src={currentChat.avatar || '/avatars/default.jpg'} 
+          src={currentChat.avatar || '/default-avatar.svg'} 
           style={{ 
             width: 40, 
             height: 40, 
