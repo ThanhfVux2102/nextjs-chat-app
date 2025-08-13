@@ -289,7 +289,7 @@ export function ChatProvider({ children }) {
     }
   }
 
-  const createChat = async (userId) => {
+  const createChat = async (userId, userObject = null) => {
     try {
       const response = await createPersonalChat(userId)
       const newChat = response.chat || response.chat_room || response
@@ -305,16 +305,62 @@ export function ChatProvider({ children }) {
       }
     } catch (error) {
       console.error('Error creating chat:', error)
+      
+      // If chat already exists, try to find it in existing chats
+      if (error.message === 'CHAT_ALREADY_EXISTS') {
+        console.log('🔍 Chat already exists, looking for existing chat with user:', userId)
+        
+        // Look for existing chat with this user
+        const existingChat = chats.find(chat => {
+          // Check if this chat is with the target user
+          return chat.participants?.includes(userId) || 
+                 chat.user_id === userId || 
+                 chat.other_user_id === userId ||
+                 chat.name === userId // Sometimes the name might be the user ID
+        })
+        
+        if (existingChat) {
+          console.log('🔍 Found existing chat:', existingChat)
+          return existingChat
+        } else {
+          console.log('🔍 No existing chat found, creating a temporary chat object')
+          // Create a temporary chat object to navigate to
+          const tempChat = {
+            chat_id: `temp_${userId}`,
+            name: userObject?.username || userObject?.name || `Chat with ${userId}`,
+            last_message: '',
+            user_id: userId,
+            username: userObject?.username,
+            email: userObject?.email
+          }
+          return tempChat
+        }
+      }
+      
       throw error
     }
   }
 
   const searchUsers = async (query) => {
     try {
+      console.log('🔍 searchUsers called with query:', query)
+      console.log('🔍 Making API call to search users...')
       const response = await searchUsersAPI(query)
-      return response.users || []
+      console.log('🔍 Raw API response:', response)
+      console.log('🔍 Response.items:', response.items)
+      console.log('🔍 Response type:', typeof response)
+      console.log('🔍 Response keys:', Object.keys(response || {}))
+      
+      // Extract users from the correct field - API returns { items: [...] }
+      const users = response.items || response.users || response.data || []
+      console.log('🔍 Returning users:', users)
+      return users
     } catch (error) {
       console.error('Error searching users:', error)
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack
+      })
       return []
     }
   }
