@@ -6,22 +6,17 @@ export default function UserPanel({ toggleRightPanel, isRightPanelOpen }) {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Header with user info and toggle button */}
+      {/* Header with toggle button */}
       <div style={{
         padding: '15px 20px',
         borderBottom: '1px solid #eee',
         backgroundColor: '#f8f9fa',
         display: 'flex',
         alignItems: 'center',
-        gap: '12px'
+        justifyContent: 'space-between'
       }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 'bold', fontSize: '16px' }}>
-            {currentUser?.username || currentUser?.name || 'User'}
-          </div>
-          <div style={{ fontSize: '12px', color: '#4CAF50' }}>
-            ● Online
-          </div>
+        <div style={{ fontWeight: 'bold', fontSize: '16px' }}>
+          User Details
         </div>
         {/* Toggle Right Panel Button */}
         <button
@@ -50,17 +45,69 @@ export default function UserPanel({ toggleRightPanel, isRightPanelOpen }) {
       </div>
 
       {/* Content */}
-      <div style={{ padding: '20px', flex: 1 }}>
-        <img 
-          src={currentUser?.avatar || '/default-avatar.svg'} 
-          style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover' }} 
-          alt={currentUser?.username || currentUser?.name || 'User'}
-        />
-        <h3>{currentUser?.username || currentUser?.name || 'User'}</h3>
-        <p style={{ color: 'green' }}>● Online</p>
-        <p style={{ color: '#666', fontSize: '14px', marginTop: '5px' }}>
-          {currentUser?.email || 'No email available'}
-        </p>
+      <div style={{ 
+        padding: '30px 20px', 
+        flex: 1, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center',
+        gap: '20px'
+      }}>
+        {/* Default Avatar */}
+        <div style={{
+          width: 100,
+          height: 100,
+          borderRadius: '50%',
+          backgroundColor: '#e0e0e0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '40px',
+          color: '#666',
+          border: '3px solid #f0f0f0'
+        }}>
+          👤
+        </div>
+
+        {/* User Name */}
+        <div style={{
+          textAlign: 'center'
+        }}>
+          <h3 style={{
+            margin: '0 0 5px 0',
+            fontSize: '20px',
+            fontWeight: '600',
+            color: '#333'
+          }}>
+            {currentUser?.username || currentUser?.name || 'User'}
+          </h3>
+        </div>
+
+        {/* User Email */}
+        <div style={{
+          textAlign: 'center',
+          padding: '15px',
+          backgroundColor: '#f8f9fa',
+          borderRadius: '8px',
+          width: '100%',
+          maxWidth: '250px'
+        }}>
+          <div style={{
+            fontSize: '14px',
+            color: '#666',
+            marginBottom: '5px'
+          }}>
+            Email
+          </div>
+          <div style={{
+            fontSize: '14px',
+            color: '#333',
+            fontWeight: '500',
+            wordBreak: 'break-word'
+          }}>
+            {currentUser?.email || 'No email available'}
+          </div>
+        </div>
       </div>
     </div>
   )
