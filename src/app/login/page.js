@@ -4,24 +4,47 @@ import React, { useState } from 'react'
 import './login.css'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useAuth } from '@/contexts/AuthContext'
 
 const Login = () => {
   const router = useRouter()
+  const { login: authLogin } = useAuth()
+
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
-
+  const [loading, setLoading] = useState(false)
   const handleLogin = async () => {
+    if (!email || !password) {
+    setMessage('Please fill in all fields')
+    return
+    }
+    setLoading(true)
+    setMessage('')
     try {
       const res = await login(email, password);
-      setMessage('Đăng nhập thành công!');
-      router.push('/chat');
+      const userData = {
+        id: res?.user?.id || res?.id || res?.user_id || Date.now(),
+        email: res?.user?.email || res?.email || email,
+        username: res?.user?.username || res?.username || email.split('@')[0],
+        avatar: res?.user?.avatar || res?.avatar || '/avatars/default.jpg',
+
+      }
+           
+      authLogin(userData)
+
+      setMessage('Login successful!')
+
+      router.replace('/chat') 
     } catch (err) {
-      console.error('Login error', err);
-      setMessage(err.message || 'Lỗi kết nối tới máy chủ');
+      console.error('Login error', err)
+      setMessage(err?.message || 'Connection error to server')
+    } finally {
+      setLoading(false)
     }
   }
+
 
   return (
     <div className="login-container">
