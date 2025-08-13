@@ -6,7 +6,7 @@ import MessageInput from './MessageInput'
 import MessageBubble from './MessageBubble'
 import { useEffect, useRef } from 'react'
 
-export default function ChatBox() {
+export default function ChatBox({ toggleRightPanel, isRightPanelOpen }) {
   const { currentChat, getMessagesForUser, addMessage, loading } = useChat()
   const { user: currentUser } = useAuth()
   const messagesEndRef = useRef(null)
@@ -61,14 +61,45 @@ export default function ChatBox() {
         height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-        color: '#666'
+        color: '#666',
+        position: 'relative'
       }}>
         <div style={{ fontSize: '24px', marginBottom: '10px' }}>
-          
+          👋 Welcome to F.E Chat!
         </div>
         <div style={{ fontSize: '16px', textAlign: 'center' }}>
           Select a chat from the sidebar to start messaging
         </div>
+        
+        {/* Toggle Right Panel Button - only show when panel is closed */}
+        {!isRightPanelOpen && (
+          <button
+            onClick={toggleRightPanel}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              border: 'none',
+              backgroundColor: '#f0f0f0',
+              color: '#333',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 16,
+              fontWeight: 'bold',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+            title="Show details"
+          >
+            i
+          </button>
+        )}
       </div>
     )
   }
@@ -94,7 +125,7 @@ export default function ChatBox() {
           }} 
           alt={currentChat.name || currentChat.username}
         />
-        <div>
+        <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 'bold', fontSize: '16px' }}>
             {currentChat.name || currentChat.username}
           </div>
@@ -103,9 +134,35 @@ export default function ChatBox() {
           </div>
         </div>
         {loading && (
-          <div style={{ marginLeft: 'auto', fontSize: '12px', color: '#666' }}>
+          <div style={{ fontSize: '12px', color: '#666', marginRight: 10 }}>
             Loading...
           </div>
+        )}
+        {/* Toggle Right Panel Button - only show when panel is closed */}
+        {!isRightPanelOpen && (
+          <button
+            onClick={toggleRightPanel}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              border: 'none',
+              backgroundColor: '#f0f0f0',
+              color: '#333',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 16,
+              fontWeight: 'bold',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+            title="Show details"
+          >
+            i
+          </button>
         )}
       </div>
       <div style={{ 

@@ -1,11 +1,18 @@
 'use client'
 
+import { useState } from 'react'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Sidebar from '../components/Sidebar'
 import ChatBox from '../components/ChatBox'
 import UserPanel from '../components/UserPanel'
 
 export default function ChatPage() {
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true)
+
+  const toggleRightPanel = () => {
+    setIsRightPanelOpen(!isRightPanelOpen)
+  }
+
   return (
     <ProtectedRoute>
       <div
@@ -30,18 +37,26 @@ export default function ChatPage() {
           flex: 5, 
           display: 'flex', 
           flexDirection: 'column', 
-          borderRight: '1px solid #ddd',
+          borderRight: isRightPanelOpen ? '1px solid #ddd' : 'none',
           backgroundColor: '#f8f9fa'
         }}>
-          <ChatBox />
+          <ChatBox 
+            toggleRightPanel={toggleRightPanel}
+            isRightPanelOpen={isRightPanelOpen}
+          />
         </div>
-        <div style={{ 
-          flex: 3,
-          backgroundColor: '#fff',
-          minWidth: '300px'
-        }}>
-          <UserPanel />
-        </div>
+        {isRightPanelOpen && (
+          <div style={{ 
+            flex: 3,
+            backgroundColor: '#fff',
+            minWidth: '300px'
+          }}>
+            <UserPanel 
+              toggleRightPanel={toggleRightPanel}
+              isRightPanelOpen={isRightPanelOpen}
+            />
+          </div>
+        )}
       </div>
     </ProtectedRoute>
   )
