@@ -424,7 +424,7 @@ export default function Sidebar() {
                         textOverflow: 'ellipsis',
                       }}
                     >
-                      {item.last_message || item.email || 'No messages yet'}
+                      {item.last_message || item.email || ''}
                     </div>
                   </div>
                   {showUserSearch && (
