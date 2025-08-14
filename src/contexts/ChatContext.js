@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect } from 'react'
-import { getChatList, getMessageHistory, createPersonalChat, searchUsers as searchUsersAPI, checkSession, testBackendEndpoints } from '@/lib/api'
+import { getChatList, getMessageHistory, createPersonalChat, createGroupChat as createGroupChatAPI, searchUsers as searchUsersAPI, checkSession, testBackendEndpoints } from '@/lib/api'
 import websocketService from '@/lib/websocket'
 import { useAuth } from './AuthContext'
 
@@ -29,6 +29,21 @@ export function ChatProvider({ children }) {
   const [sentMessages, setSentMessages] = useState(new Set()) // Track messages we sent
   const [recentSentContent, setRecentSentContent] = useState(new Set()) // Track recent sent content
   const [recentMessages, setRecentMessages] = useState([]) // Track recent messages for echo detection
+  // Helper: add or update a chat item without creating duplicates
+  const upsertChat = (incomingChat) => {
+    if (!incomingChat) return
+    const incomingId = incomingChat.chat_id || incomingChat.id
+    if (!incomingId) return
+    setChats((previousChats) => {
+      const index = previousChats.findIndex(c => (c.chat_id || c.id) === incomingId)
+      if (index !== -1) {
+        const updated = [...previousChats]
+        updated[index] = { ...previousChats[index], ...incomingChat }
+        return updated
+      }
+      return [incomingChat, ...previousChats]
+    })
+  }
 
   // Function to add content to recently sent tracking
   const addToRecentSent = (content, chatId) => {
@@ -508,7 +523,7 @@ export function ChatProvider({ children }) {
         }
       })
       websocketService.onMessage('new_chat_room', (payload) => {
-        const room = payload?.chat_room
+        const room = payload?.chat_room || payload?.chat || payload
         if (!room) return
         const normalizedRoom = {
           ...room,
@@ -516,7 +531,7 @@ export function ChatProvider({ children }) {
           name: room.chat_name || room.name || 'New Chat',
           last_message: room.last_message || '',
         }
-        setChats((previousChats) => [normalizedRoom, ...previousChats])
+        upsertChat(normalizedRoom)
       })
 
       websocketService.onConnection('connected', () => {
@@ -759,6 +774,37 @@ export function ChatProvider({ children }) {
     }
   }
 
+  const createGroup = async ({ name, participantIds, adminIds = [] }) => {
+    try {
+      // Ensure creator is included as participant and admin
+      const uniqueParticipantIds = Array.from(new Set([currentUser?.id, ...(participantIds || [])].filter(Boolean)))
+      const uniqueAdminIds = Array.from(new Set([currentUser?.id, ...(adminIds || [])].filter(Boolean)))
+
+      if (uniqueParticipantIds.length < 2) {
+        throw new Error('Please select at least one participant for the group')
+      }
+
+      const response = await createGroupChatAPI(uniqueParticipantIds, name, uniqueAdminIds)
+      const newChat = response.chat || response.chat_room || response
+      if (newChat) {
+        const normalizedChat = {
+          ...newChat,
+          chat_id: newChat.chat_id || newChat.id,
+          name: newChat.chat_name || newChat.name || 'Group',
+          last_message: newChat.last_message || ''
+        }
+        // Upsert to avoid duplicates
+        upsertChat(normalizedChat)
+        return normalizedChat
+      }
+      return null
+    } catch (error) {
+      console.error('Error creating group chat:', error)
+      alert(error.message || 'Failed to create group chat')
+      return null
+    }
+  }
+
   const searchUsers = async (query) => {
     try {
       const response = await searchUsersAPI(query)
@@ -819,6 +865,7 @@ export function ChatProvider({ children }) {
     getMessagesForUser,
     searchUsers,
     createChat,
+    createGroup,
     loadChatList,
     loadMoreChats,
     loadChatMessages,

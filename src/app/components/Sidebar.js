@@ -14,6 +14,7 @@ export default function Sidebar() {
     loadMoreChats,
     nextCursor,
     createChat,
+    createGroup,
     currentChat,
     testBackendEndpoints,
   } = useChat()
@@ -28,9 +29,12 @@ export default function Sidebar() {
   const [searching, setSearching] = useState(false)
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false)
   const [showUserModal, setShowUserModal] = useState(false)
+  const [showGroupModal, setShowGroupModal] = useState(false)
   const [modalSearchQuery, setModalSearchQuery] = useState('')
   const [modalSearchResults, setModalSearchResults] = useState([])
   const [modalSearching, setModalSearching] = useState(false)
+  const [selectedGroupUsers, setSelectedGroupUsers] = useState([])
+  const [groupName, setGroupName] = useState('')
 
   const handleSearch = async (query) => {
     console.log('🔍 Search triggered with query:', query)
@@ -178,10 +182,43 @@ export default function Sidebar() {
   }
 
   const handleAddClick = () => {
-    console.log('🔍 Add button clicked, opening user modal')
-    setShowUserModal(true)
+    console.log('🔍 Add button clicked, opening group modal')
+    setShowGroupModal(true)
     setModalSearchQuery('')
     setModalSearchResults([])
+    setSelectedGroupUsers([])
+    setGroupName('')
+  }
+
+  const toggleSelectGroupUser = (user) => {
+    setSelectedGroupUsers((prev) => {
+      const exists = prev.find(u => u.id === user.id)
+      if (exists) return prev.filter(u => u.id !== user.id)
+      return [...prev, user]
+    })
+  }
+
+  const handleCreateGroup = async () => {
+    if (!groupName.trim()) {
+      alert('Please enter a group name')
+      return
+    }
+    if (selectedGroupUsers.length < 1) {
+      alert('Please select at least one participant')
+      return
+    }
+    try {
+      const participantIds = selectedGroupUsers.map(u => u.id)
+      const newChat = await createGroup({ name: groupName.trim(), participantIds, adminIds: [] })
+      if (newChat) {
+        setShowGroupModal(false)
+        setGroupName('')
+        setSelectedGroupUsers([])
+        setCurrentChatUser(newChat)
+      }
+    } catch (e) {
+      // errors handled in context
+    }
   }
 
   const displayChats = showUserSearch ? searchResults : (Array.isArray(chats) ? chats : [])
@@ -660,7 +697,7 @@ export default function Sidebar() {
       </div>
 
       {/* User Search Modal */}
-      {showUserModal && (
+        {showUserModal && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -799,6 +836,125 @@ export default function Sidebar() {
                   Start typing to search for users
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Group Create Modal */}
+      {showGroupModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: 12,
+            padding: 24,
+            width: '90%',
+            maxWidth: 560,
+            maxHeight: '80vh',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 20, fontWeight: 'bold', margin: 0 }}>Create Group</h3>
+              <button
+                onClick={() => setShowGroupModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#666' }}
+              >
+                ×
+              </button>
+            </div>
+            <input
+              type="text"
+              placeholder="Group name"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                marginBottom: 12,
+                border: '1px solid #ddd',
+                borderRadius: 8,
+                outline: 'none',
+                backgroundColor: '#fff',
+                color: '#000',
+                fontSize: 14,
+                boxSizing: 'border-box',
+              }}
+            />
+            <input
+              type="text"
+              placeholder="Search users to add..."
+              value={modalSearchQuery}
+              onChange={(e) => handleModalSearch(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                marginBottom: 12,
+                border: '1px solid #ddd',
+                borderRadius: 8,
+                outline: 'none',
+                backgroundColor: '#fff',
+                color: '#000',
+                fontSize: 14,
+                boxSizing: 'border-box',
+              }}
+            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {selectedGroupUsers.map((u) => (
+                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', border: '1px solid #eee', borderRadius: 16 }}>
+                  <img src={u.avatar || '/default-avatar.svg'} style={{ width: 18, height: 18, borderRadius: '50%' }} />
+                  <span style={{ fontSize: 12 }}>{u.username || u.name}</span>
+                  <button onClick={() => toggleSelectGroupUser(u)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#d32f2f' }}>×</button>
+                </div>
+              ))}
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8 }}>
+              {modalSearching ? (
+                <div style={{ textAlign: 'center', padding: 20, color: '#666' }}>Searching...</div>
+              ) : modalSearchResults.length > 0 ? (
+                modalSearchResults.map((user) => {
+                  const selected = !!selectedGroupUsers.find(u => u.id === user.id)
+                  return (
+                    <div
+                      key={`pick-${user.id}`}
+                      onClick={() => toggleSelectGroupUser(user)}
+                      style={{
+                        display: 'flex',
+                        gap: 12,
+                        padding: '12px 10px',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #f5f5f5',
+                        backgroundColor: selected ? '#e3f2fd' : 'transparent'
+                      }}
+                    >
+                      <img src={user.avatar || '/default-avatar.svg'} alt={user.username || user.name} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 'bold', fontSize: 14, color: '#333' }}>{user.username || user.name}</div>
+                        <div style={{ fontSize: 12, color: '#666' }}>{user.email}</div>
+                      </div>
+                      <input type="checkbox" readOnly checked={selected} />
+                    </div>
+                  )
+                })
+              ) : (
+                <div style={{ textAlign: 'center', color: '#666', padding: 20, fontSize: 14 }}>Start typing to search for users</div>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+              <button onClick={() => setShowGroupModal(false)} style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #ddd', backgroundColor: '#fff', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleCreateGroup} style={{ padding: '8px 14px', borderRadius: 6, border: 'none', backgroundColor: '#007AFF', color: '#fff', cursor: 'pointer' }}>Create Group</button>
             </div>
           </div>
         </div>

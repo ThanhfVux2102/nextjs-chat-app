@@ -274,6 +274,52 @@ export async function createPersonalChat(userId) {
   return data;
 }
 
+export async function createGroupChat(participantIds, name, adminIds = []) {
+  console.log('🔍 API: createGroupChat called with', { participantIds, name, adminIds })
+  const payload = {
+    chat_type: 'group',
+    participants: (participantIds || []).map((id) => String(id)),
+    name: name,
+    admins: (adminIds || []).map((id) => String(id))
+  }
+
+  const res = await fetch(`${BASE_URL}/api/chat/create/group`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  console.log('🔍 API: createGroupChat response status:', res.status)
+
+  if (!res.ok) {
+    const errorText = await res.text()
+    console.error('🔍 API: createGroupChat failed with error text:', errorText)
+    let errorData = {}
+    try { errorData = JSON.parse(errorText) } catch {}
+
+    // Format fastapi-style validation errors for readability
+    let message = errorData.message || errorData.detail || ''
+    if (Array.isArray(errorData?.detail)) {
+      message = errorData.detail
+        .map((d) => {
+          const loc = Array.isArray(d.loc) ? d.loc.join('.') : d.loc
+          const msg = d.msg || d.message || JSON.stringify(d)
+          return loc ? `${loc}: ${msg}` : msg
+        })
+        .join('\n')
+    }
+    if (!message || typeof message !== 'string') {
+      message = `Failed to create group chat (${res.status})`
+    }
+    throw new Error(message)
+  }
+
+  const data = await res.json()
+  console.log('🔍 API: createGroupChat successful, data:', data)
+  return data
+}
+
 export async function getCurrentUser() {
   console.log('🔍 API: Getting current user from /api/auth/me')
   
