@@ -118,6 +118,8 @@ export async function getChatList(cursor = null) {
     ? `${BASE_URL}/api/chat/me/view?cursor=${encodeURIComponent(cursor)}`
     : `${BASE_URL}/api/chat/me/view`;
   
+  console.log('🔍 API: getChatList called with URL:', url);
+  
   const res = await fetch(url, {
     method: 'GET',
     credentials: 'include',
@@ -127,8 +129,11 @@ export async function getChatList(cursor = null) {
     }
   });
 
+  console.log('🔍 API: getChatList response status:', res.status);
+
   if (!res.ok) {
     const errorText = await res.text();
+    console.error('🔍 API: getChatList failed with error text:', errorText);
     let errorData = {};
     try {
       errorData = JSON.parse(errorText);
@@ -137,13 +142,19 @@ export async function getChatList(cursor = null) {
   }
 
   const data = await res.json();
+  console.log('🔍 API: getChatList raw response:', data);
+  
   let chatsRaw = Array.isArray(data.chats) ? data.chats : (Array.isArray(data.items) ? data.items : []);
+  console.log('🔍 API: getChatList chatsRaw:', chatsRaw);
+  
   const chats = chatsRaw.map((item) => ({
     ...item,
     chat_id: item.chat_id || item.id,
     name: item.name || item.chat_name || item.username || 'Unknown',
     last_message: item.last_message || item.lastMessage || '',
   }));
+
+  console.log('🔍 API: getChatList processed chats:', chats);
 
   return {
     chats,
@@ -152,22 +163,73 @@ export async function getChatList(cursor = null) {
 }
 
 
-export async function getMessageHistory(cursor = null) {
-  const url = cursor 
-    ? `${BASE_URL}/api/message/history?cursor=${encodeURIComponent(cursor)}`
-    : `${BASE_URL}/api/message/history`;
+export async function getMessageHistory(chatId = null, cursor = null, limit = 50) {
   
-  const res = await fetch(url, {
-    method: 'GET',
-    credentials: 'include',
-  });
+  const possibleEndpoints = [
+    `/api/message/history`,
+    `/api/messages/history`,
+    `/api/chat/${chatId}/messages`,
+    `/api/messages`,
+    `/api/chat/messages`
+  ];
+  
+  let lastError = null;
+  
+  for (const endpoint of possibleEndpoints) {
+    try {
+      let url = `${BASE_URL}${endpoint}`;
+      const params = new URLSearchParams();
+      
+      if (chatId && !endpoint.includes('${chatId}')) {
+        params.append('chat_id', chatId);
+      }
+      
+      if (cursor) {
+        params.append('cursor', cursor);
+      }
+      if (limit) {
+        params.append('limit', String(limit));
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+      
+      console.log('🔍 API: getMessageHistory trying endpoint:', url);
+      
+      const res = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        }
+      });
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.detail || 'Failed to fetch message history');
+      console.log('🔍 API: getMessageHistory response status:', res.status);
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log('🔍 API: getMessageHistory successful with endpoint:', endpoint, {
+          messagesCount: data.messages?.length || 0,
+          chatId,
+          cursor
+        });
+        return data;
+      } else {
+        const errorText = await res.text();
+        console.log('🔍 API: getMessageHistory failed with endpoint:', endpoint, 'Status:', res.status, 'Error:', errorText);
+        lastError = new Error(`${endpoint} failed: ${res.status} - ${errorText}`);
+      }
+    } catch (error) {
+      console.log('🔍 API: getMessageHistory error with endpoint:', endpoint, error.message);
+      lastError = error;
+    }
   }
-
-  return await res.json();
+  
+  // If all endpoints failed, throw the last error
+  console.error('🔍 API: All message history endpoints failed');
+  throw lastError || new Error('Failed to fetch message history - no working endpoint found');
 }
 
 
@@ -271,4 +333,54 @@ export async function searchUsers(query) {
   const data = await res.json();
   console.log('🔍 API: Search successful, data:', data)
   return data;
+}
+
+// Test function to check backend connectivity and available endpoints
+export async function testBackendEndpoints() {
+  console.log('🔍 API: Testing backend connectivity...')
+  
+  const testEndpoints = [
+    '/api/auth/me',
+    '/api/chat/me/view',
+    '/api/message/history',
+    '/api/messages/history',
+    '/api/messages',
+    '/api/chat/messages'
+  ];
+  
+  const results = {};
+  
+  for (const endpoint of testEndpoints) {
+    try {
+      const url = `${BASE_URL}${endpoint}`;
+      console.log('🔍 API: Testing endpoint:', url);
+      
+      const res = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      results[endpoint] = {
+        status: res.status,
+        ok: res.ok,
+        statusText: res.statusText
+      };
+      
+      console.log('🔍 API: Endpoint result:', endpoint, results[endpoint]);
+      
+    } catch (error) {
+      results[endpoint] = {
+        error: error.message,
+        status: 'ERROR'
+      };
+      console.log('🔍 API: Endpoint error:', endpoint, error.message);
+    }
+  }
+  
+  console.log('🔍 API: All endpoint test results:', results);
+  return results;
 }

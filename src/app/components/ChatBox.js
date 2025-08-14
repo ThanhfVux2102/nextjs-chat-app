@@ -4,12 +4,13 @@ import { useChat } from '@/contexts/ChatContext'
 import { useAuth } from '@/contexts/AuthContext'
 import MessageInput from './MessageInput'
 import MessageBubble from './MessageBubble'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 
 export default function ChatBox({ toggleRightPanel, isRightPanelOpen }) {
-  const { currentChat, getMessagesForUser, addMessage, loading } = useChat()
+  const { currentChat, getMessagesForUser, addMessage, loading, loadMoreMessages } = useChat()
   const { user: currentUser } = useAuth()
   const messagesEndRef = useRef(null)
+  const scrollContainerRef = useRef(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -18,6 +19,15 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen }) {
   useEffect(() => {
     scrollToBottom()
   }, [currentChat])
+
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current
+    if (!container || !currentChat) return
+    if (container.scrollTop <= 0) {
+      // Load 50 more older messages
+      loadMoreMessages(currentChat.chat_id || currentChat.id, 50)
+    }
+  }, [currentChat, loadMoreMessages])
 
   const handleSend = (text) => {
     if (!currentChat) {
@@ -165,7 +175,7 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen }) {
           </button>
         )}
       </div>
-      <div style={{ 
+      <div ref={scrollContainerRef} onScroll={handleScroll} style={{ 
         flex: 1, 
         overflowY: 'auto', 
         padding: '20px',

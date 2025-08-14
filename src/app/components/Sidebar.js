@@ -15,6 +15,7 @@ export default function Sidebar() {
     nextCursor,
     createChat,
     currentChat,
+    testBackendEndpoints,
   } = useChat()
 
   const { user: currentUser, logout } = useAuth()
@@ -271,6 +272,34 @@ export default function Sidebar() {
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
                     Reset Password
+                  </button>
+                  <button
+                    onClick={async () => {
+                      console.log('🔍 Testing backend endpoints...')
+                      try {
+                        const results = await testBackendEndpoints()
+                        console.log('🔍 Backend test results:', results)
+                        alert('Backend test completed. Check console for results.')
+                      } catch (error) {
+                        console.error('🔍 Backend test failed:', error)
+                        alert('Backend test failed. Check console for details.')
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      color: '#333',
+                      borderBottom: '1px solid #eee'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    Test Backend
                   </button>
                   <button
                     onClick={handleLogout}
