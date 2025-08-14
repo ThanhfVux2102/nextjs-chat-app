@@ -23,6 +23,7 @@ export default function Sidebar() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
+  const [chatSearchResults, setChatSearchResults] = useState([])
   const [showUserSearch, setShowUserSearch] = useState(false)
   const [searching, setSearching] = useState(false)
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false)
@@ -38,7 +39,10 @@ export default function Sidebar() {
       setSearching(true)
       try {
         console.log('🔍 Calling searchUsers with query:', query)
-        const results = await searchUsers(query)
+        // Run user search while also filtering chats locally
+        const [results] = await Promise.all([
+          searchUsers(query),
+        ])
         console.log('🔍 Search results received:', results)
         console.log('🔍 Search results type:', typeof results)
         console.log('🔍 Search results is array:', Array.isArray(results))
@@ -61,17 +65,28 @@ export default function Sidebar() {
         
         console.log('🔍 Processed users array:', users)
         setSearchResults(users)
+
+        // Filter chats locally based on name or last_message match
+        const chatMatches = (Array.isArray(chats) ? chats : []).filter((c) => {
+          const hay = `${c.name || c.chat_name || c.username || ''} ${c.last_message || ''}`.toLowerCase()
+          return hay.includes(query.toLowerCase())
+        })
+        setChatSearchResults(chatMatches)
+
+        // Enter combined search view
         setShowUserSearch(true)
         console.log('🔍 Search results set, showUserSearch set to true')
       } catch (err) {
         console.error('Error searching users:', err)
         setSearchResults([])
+        setChatSearchResults([])
       } finally {
         setSearching(false)
       }
     } else {
       console.log('🔍 Empty query, clearing search results')
       setSearchResults([])
+      setChatSearchResults([])
       setShowUserSearch(false)
     }
   }
@@ -341,7 +356,7 @@ export default function Sidebar() {
 
         <input
           type="text"
-          placeholder={showUserSearch ? 'Search users...' : 'Search chats...'}
+          placeholder={'Search chats or users...'}
           value={searchQuery}
           onChange={(e) => handleSearch(e.target.value)}
           style={{
@@ -397,8 +412,132 @@ export default function Sidebar() {
 
         
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {loading && !showUserSearch ? (
+          {loading && !showUserSearch && !searchQuery.trim() ? (
             <div style={{ textAlign: 'center', padding: 20, color: '#666' }}>Loading chats...</div>
+          ) : searchQuery.trim() ? (
+            <>
+              <div style={{ fontSize: 12, color: '#666', padding: '4px 8px' }}>Chats</div>
+              {chatSearchResults.length > 0 ? (
+                chatSearchResults.map((item) => {
+                  const isActive = currentChat?.chat_id === (item.chat_id || item.id)
+                  return (
+                    <div
+                      key={`chat-${item.id || item.chat_id}`}
+                      onClick={() => handleUserClick(item)}
+                      style={{
+                        display: 'flex',
+                        gap: 12,
+                        padding: '15px 10px',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        borderRadius: 8,
+                        transition: 'background-color .2s',
+                        marginBottom: 5,
+                        backgroundColor: isActive ? '#e3f2fd' : 'transparent',
+                        border: isActive ? '2px solid #007AFF' : '2px solid transparent',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) e.currentTarget.style.backgroundColor = '#f5f5f5'
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'
+                      }}
+                    >
+                      <img
+                        src={item.avatar || '/default-avatar.svg'}
+                        alt={item.name || item.username || 'chat'}
+                        style={{ width: 45, height: 45, borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontWeight: 'bold',
+                            fontSize: 14,
+                            color: '#333',
+                            marginBottom: 4,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {item.name || item.chat_name || item.username || `Chat ${item.chat_id || ''}`}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: '#666',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {item.last_message || item.email || ''}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              ) : (
+                <div style={{ textAlign: 'center', color: '#666', padding: 10, fontSize: 12 }}>No chats found</div>
+              )}
+
+              <div style={{ fontSize: 12, color: '#666', padding: '8px 8px 4px' }}>Users</div>
+              {searchResults.length > 0 ? (
+                searchResults.map((item) => (
+                  <div
+                    key={`user-${item.id || item.user_id}`}
+                    onClick={() => handleCreateChat(item)}
+                    style={{
+                      display: 'flex',
+                      gap: 12,
+                      padding: '15px 10px',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      borderRadius: 8,
+                      transition: 'background-color .2s',
+                      marginBottom: 5,
+                      border: '1px solid #eee'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <img
+                      src={item.avatar || '/default-avatar.svg'}
+                      alt={item.username || item.name || 'user'}
+                      style={{ width: 45, height: 45, borderRadius: '50%', objectFit: 'cover' }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 'bold', fontSize: 14, color: '#333', marginBottom: 4 }}>
+                        {item.username || item.name}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.email || ''}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCreateChat(item)
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#28a745',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        fontSize: 11,
+                        marginLeft: 'auto',
+                      }}
+                    >
+                      Chat
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div style={{ textAlign: 'center', color: '#666', padding: 10, fontSize: 12 }}>No users found</div>
+              )}
+            </>
           ) : displayChats.length > 0 ? (
             displayChats.map((item) => {
               const isActive = currentChat?.chat_id === (item.chat_id || item.id)
