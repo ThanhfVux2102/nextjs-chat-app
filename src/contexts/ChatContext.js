@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect } from 'react'
-import { getChatList, getMessageHistory, createPersonalChat, createGroupChat as createGroupChatAPI, searchUsers as searchUsersAPI, checkSession, testBackendEndpoints } from '@/lib/api'
+import { getChatList, getMessageHistory, createPersonalChat, createGroupChat as createGroupChatAPI, deleteChat as deleteChatAPI, searchUsers as searchUsersAPI, checkSession, testBackendEndpoints } from '@/lib/api'
 import websocketService from '@/lib/websocket'
 import { useAuth } from './AuthContext'
 
@@ -45,12 +45,10 @@ export function ChatProvider({ children }) {
     })
   }
 
-  // Function to add content to recently sent tracking
   const addToRecentSent = (content, chatId) => {
     const key = `${content}-${chatId}`;
     setRecentSentContent(prev => new Set([...prev, key]));
     
-    // Remove from tracking after 10 seconds
     setTimeout(() => {
       setRecentSentContent(prev => {
         const newSet = new Set(prev);
@@ -60,7 +58,6 @@ export function ChatProvider({ children }) {
     }, 10000);
   }
 
-  // Function to add message to recent messages tracking
   const addToRecentMessages = (message) => {
     const messageWithTimestamp = {
       ...message,
@@ -75,13 +72,12 @@ export function ChatProvider({ children }) {
       return newRecentMessages;
     });
     
-    // Clean up old messages after 10 seconds
     setTimeout(() => {
       setRecentMessages(prev => prev.filter(msg => (Date.now() - msg.timestamp) < 10000));
     }, 10000);
   }
 
-  // Function to check if this is an echo of a recently sent message
+  
   const isEchoOfRecentMessage = (content, chatId) => {
     const now = Date.now();
     console.log('🔍 Checking for echo of content:', content, 'in chat:', chatId);
@@ -851,6 +847,23 @@ export function ChatProvider({ children }) {
     ))
   }
 
+  const deleteChat = async (chatId) => {
+    if (!chatId) return false
+    try {
+      await deleteChatAPI(chatId)
+      setChats(prev => prev.filter(c => (c.chat_id || c.id) !== chatId))
+      setMessages(prev => prev.filter(m => m.chat_id !== chatId))
+      if (currentChat && (currentChat.chat_id === chatId || currentChat.id === chatId)) {
+        setCurrentChat(null)
+      }
+      return true
+    } catch (e) {
+      console.error('Failed to delete chat:', e)
+      alert(e.message || 'Failed to delete chat')
+      return false
+    }
+  }
+
   const value = {
     messages,
     chats,
@@ -870,6 +883,7 @@ export function ChatProvider({ children }) {
     loadMoreChats,
     loadChatMessages,
     loadMoreMessages,
+    deleteChat,
     setMessages,
     setUsers,
     setChats,

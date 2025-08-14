@@ -320,6 +320,43 @@ export async function createGroupChat(participantIds, name, adminIds = []) {
   return data
 }
 
+export async function deleteChat(chatId) {
+  const endpoints = [
+    { method: 'DELETE', url: `${BASE_URL}/api/chat/${encodeURIComponent(chatId)}`, body: null },
+    { method: 'DELETE', url: `${BASE_URL}/api/chats/${encodeURIComponent(chatId)}`, body: null },
+    { method: 'DELETE', url: `${BASE_URL}/api/chat/delete/${encodeURIComponent(chatId)}`, body: null },
+    { method: 'POST', url: `${BASE_URL}/api/chat/delete`, body: { chat_id: String(chatId) } },
+  ]
+
+  let lastError = null
+  for (const ep of endpoints) {
+    try {
+      const res = await fetch(ep.url, {
+        method: ep.method,
+        credentials: 'include',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: ep.body ? JSON.stringify(ep.body) : null,
+      })
+
+      if (res.ok) {
+        // Some APIs return empty body on DELETE
+        try {
+          const data = await res.json()
+          return data || { ok: true }
+        } catch {
+          return { ok: true }
+        }
+      } else {
+        const text = await res.text()
+        lastError = new Error(text || `Failed to delete chat (${res.status})`)
+      }
+    } catch (e) {
+      lastError = e
+    }
+  }
+  throw lastError || new Error('Failed to delete chat')
+}
+
 export async function getCurrentUser() {
   console.log('🔍 API: Getting current user from /api/auth/me')
   

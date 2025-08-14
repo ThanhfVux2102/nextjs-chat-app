@@ -15,6 +15,7 @@ export default function Sidebar() {
     nextCursor,
     createChat,
     createGroup,
+    deleteChat,
     currentChat,
     testBackendEndpoints,
   } = useChat()
@@ -35,6 +36,7 @@ export default function Sidebar() {
   const [modalSearching, setModalSearching] = useState(false)
   const [selectedGroupUsers, setSelectedGroupUsers] = useState([])
   const [groupName, setGroupName] = useState('')
+  const [openChatOptionsId, setOpenChatOptionsId] = useState(null)
 
   const handleSearch = async (query) => {
     console.log('🔍 Search triggered with query:', query)
@@ -472,6 +474,7 @@ export default function Sidebar() {
                         marginBottom: 5,
                         backgroundColor: isActive ? '#e3f2fd' : 'transparent',
                         border: isActive ? '2px solid #007AFF' : '2px solid transparent',
+                        position: 'relative'
                       }}
                       onMouseEnter={(e) => {
                         if (!isActive) e.currentTarget.style.backgroundColor = '#f5f5f5'
@@ -510,6 +513,52 @@ export default function Sidebar() {
                         >
                           {item.last_message || item.email || ''}
                         </div>
+                      </div>
+                      <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+                        <button
+                          title="Options"
+                          onClick={() => {
+                            const id = item.chat_id || item.id
+                            setOpenChatOptionsId(prev => prev === id ? null : id)
+                          }}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            border: 'none',
+                            backgroundColor: '#f0f0f0',
+                            color: '#333',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 18,
+                            lineHeight: '32px',
+                            padding: 0
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+                        >
+                          ⋯
+                        </button>
+                        {openChatOptionsId === (item.chat_id || item.id) && (
+                          <div style={{ position: 'absolute', top: 40, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 150 }}>
+                            <button
+                              onClick={async () => {
+                                const id = item.chat_id || item.id
+                                const ok = confirm('Delete this chat? This cannot be undone.')
+                                if (!ok) return
+                                await deleteChat(id)
+                                setOpenChatOptionsId(null)
+                              }}
+                              style={{ width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: 14, color: '#d32f2f' }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#ffebee'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              Delete chat
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
@@ -593,6 +642,7 @@ export default function Sidebar() {
                     marginBottom: 5,
                     backgroundColor: isActive ? '#e3f2fd' : 'transparent',
                     border: isActive ? '2px solid #007AFF' : '2px solid transparent',
+                    position: 'relative'
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) e.currentTarget.style.backgroundColor = '#f5f5f5'
@@ -631,6 +681,52 @@ export default function Sidebar() {
                     >
                       {item.last_message || item.email || ''}
                     </div>
+                  </div>
+                  <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+                    <button
+                      title="Options"
+                      onClick={() => {
+                        const id = item.chat_id || item.id
+                        setOpenChatOptionsId(prev => prev === id ? null : id)
+                      }}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        border: 'none',
+                        backgroundColor: '#f0f0f0',
+                        color: '#333',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 18,
+                        lineHeight: '32px',
+                        padding: 0
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+                    >
+                      ⋯
+                    </button>
+                    {openChatOptionsId === (item.chat_id || item.id) && (
+                      <div style={{ position: 'absolute', top: 40, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 150 }}>
+                        <button
+                          onClick={async () => {
+                            const id = item.chat_id || item.id
+                            const ok = confirm('Delete this chat? This cannot be undone.')
+                            if (!ok) return
+                            await deleteChat(id)
+                            setOpenChatOptionsId(null)
+                          }}
+                          style={{ width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: 14, color: '#d32f2f' }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#ffebee'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                          Delete chat
+                        </button>
+                      </div>
+                    )}
                   </div>
                   {showUserSearch && (
                     <button
