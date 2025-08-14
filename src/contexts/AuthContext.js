@@ -18,60 +18,89 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
-  // Check for existing session on mount
+  // Check for existing session on mount and keep across reloads/tabs
   useEffect(() => {
-    const checkAuth = async () => {
+    let cancelled = false
+
+    const hydrateFromLocalStorage = () => {
       try {
-        const savedUser = localStorage.getItem('chatUser')
-        if (savedUser) {
-          const userData = JSON.parse(savedUser)
-          try {
-            // Try to get current user data from /api/auth/me
-            const currentUserData = await getCurrentUser()
-            if (currentUserData && currentUserData.user) {
-              // Use the fresh data from the API
-              setUser(currentUserData.user)
-              setIsAuthenticated(true)
-              localStorage.setItem('chatUser', JSON.stringify(currentUserData.user))
-            } else {
-              // Fallback to checkSession
-              const sessionData = await checkSession()
-              if (sessionData && sessionData.user) {
-                setUser(sessionData.user)
-                setIsAuthenticated(true)
-              } else {
-                console.log('Backend session expired, clearing local auth data')
-                localStorage.removeItem('chatUser')
-                setUser(null)
-                setIsAuthenticated(false)
-              }
-            }
-          } catch (error) {
-            console.error('getCurrentUser failed, trying checkSession:', error)
-            // Fallback to checkSession
-            const sessionData = await checkSession()
-            if (sessionData && sessionData.user) {
-              setUser(sessionData.user)
-              setIsAuthenticated(true)
-            } else {
-              console.log('Backend session expired, clearing local auth data')
-              localStorage.removeItem('chatUser')
-              setUser(null)
-              setIsAuthenticated(false)
-            }
-          }
+        const saved = localStorage.getItem('chatUser')
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          setUser(parsed)
+          setIsAuthenticated(true)
+          // Allow app to render immediately with local session
+          setLoading(false)
+          return true
+        }
+      } catch {}
+      return false
+    }
+
+    const validateWithBackend = async () => {
+      try {
+        // Prefer a fresh user object from the backend if cookie/session exists
+        const currentUserData = await getCurrentUser()
+        if (!cancelled && currentUserData && currentUserData.user) {
+          setUser(currentUserData.user)
+          setIsAuthenticated(true)
+          localStorage.setItem('chatUser', JSON.stringify(currentUserData.user))
+          if (!cancelled) setLoading(false)
+          return
+        }
+      } catch (err) {
+        console.warn('getCurrentUser failed, falling back to checkSession:', err?.message)
+      }
+
+      try {
+        const sessionData = await checkSession()
+        if (!cancelled && sessionData && sessionData.user) {
+          setUser(sessionData.user)
+          setIsAuthenticated(true)
+          localStorage.setItem('chatUser', JSON.stringify(sessionData.user))
+          if (!cancelled) setLoading(false)
+        } else if (!cancelled) {
+          // Do NOT force logout; keep local session so user stays signed in across reloads
+          console.info('No backend session, keeping local session')
+          setLoading(false)
         }
       } catch (error) {
-        console.error('Error checking auth:', error)
-        localStorage.removeItem('chatUser')
-        setUser(null)
-        setIsAuthenticated(false)
+        if (!cancelled) {
+          console.error('Error validating session:', error)
+          // Keep local session on errors
+          setIsAuthenticated(!!localStorage.getItem('chatUser'))
+          setUser(prev => prev)
+        }
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
-    checkAuth()
+    const hadLocal = hydrateFromLocalStorage()
+    // Validate silently in background; do not disrupt local session on failure
+    validateWithBackend()
+
+    // Sync auth state across tabs
+    const onStorage = (e) => {
+      if (e.key === 'chatUser') {
+        try {
+          if (e.newValue) {
+            const parsed = JSON.parse(e.newValue)
+            setUser(parsed)
+            setIsAuthenticated(true)
+          } else {
+            setUser(null)
+            setIsAuthenticated(false)
+          }
+        } catch {}
+      }
+    }
+    window.addEventListener('storage', onStorage)
+
+    return () => {
+      cancelled = true
+      window.removeEventListener('storage', onStorage)
+    }
   }, [])
 
   const login = (userData) => {
