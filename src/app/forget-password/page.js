@@ -1,17 +1,30 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Archivo_Black } from 'next/font/google'
+import { forgotPassword } from '@/lib/api'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
   const router = useRouter()
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    console.log("Reset link sent to:", email)
-    // Gọi API gửi email reset password tại đây
+const handleSubmit = async (e) => {
+  e.preventDefault()
+  setMessage('')
+  setError('')
+  setLoading(true)
+
+  try {
+      await forgotPassword(email)
+      setMessage('Check your email for the reset link.')
+    } catch (err) {
+      setError(err?.message || 'Failed to send reset link')
+    } finally {
+      setLoading(false)
   }
+}
 
   return (
     <div style={styles.wrapper}>
@@ -21,17 +34,20 @@ export default function ForgotPasswordPage() {
         <p style={styles.subtitle}>Please enter your email to reset the password</p>
         
         <form onSubmit={handleSubmit}>
-          <label style={styles.label}>Your Email</label>
+          <label style={{...styles.label, color: 'black'}}>Your Email</label>
           <input
             type="email"
             required
             placeholder="Enter your email" 
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={styles.input}
+            style={{...styles.input, color: 'black'}}
           />
           <button type="submit" style={styles.submitButton}>Reset Password</button>
         </form>
+        {message && <p style={styles.success}>{message}</p>}
+        {error && <p style={styles.error}>{error}</p>}
+        <p style={styles.minitext}>Already remember your password? <a href="/login">Back to login</a></p>
       </div>
     </div>
   )

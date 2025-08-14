@@ -38,7 +38,7 @@ export default function MessageInput({ onSend }) {
     gap: '10px',
   }}
 >
-  {/* Nút icon đính kèm */}
+  
   <button
     type="button"
     onClick={handleFileClick}
@@ -70,7 +70,7 @@ export default function MessageInput({ onSend }) {
     onChange={handleFileChange}
   />
 
-  {/* Input nhập tin nhắn */}
+
   <div style={{ flex: 1 }}>
     <input
       value={text}

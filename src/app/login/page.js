@@ -1,38 +1,105 @@
-import React from 'react';
-import './login.css'; // nhớ tạo file login.css
+'use client'
+import { login } from '@/lib/api'
+import React, { useState } from 'react'
+import './login.css'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { useAuth } from '@/contexts/AuthContext'
 
 const Login = () => {
+  const router = useRouter()
+  const { login: authLogin } = useAuth()
+
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
+  const handleLogin = async () => {
+    if (!email || !password) {
+    setMessage('Please fill in all fields')
+    return
+    }
+    setLoading(true)
+    setMessage('')
+    try {
+      const res = await login(email, password);
+      const userData = {
+        id: res?.user?.id || res?.id || res?.user_id || Date.now(),
+        email: res?.user?.email || res?.email || email,
+        username: res?.user?.username || res?.username || email.split('@')[0],
+        avatar: res?.user?.avatar || res?.avatar || '/avatars/default.jpg',
+
+      }
+           
+      authLogin(userData)
+
+      setMessage('Login successful!')
+
+      router.replace('/chat') 
+    } catch (err) {
+      console.error('Login error', err)
+      setMessage(err?.message || 'Connection error to server')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
   return (
     <div className="login-container">
       <div className="form-section">
         <h2>LOGIN INTO YOUR ACCOUNT</h2>
+
         <div className="form-group">
           <label>Email Address</label>
           <div className="input-icon">
-            <input type="email" placeholder="alex@email.com" />
+            <input
+              type="email"
+              placeholder="alex@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
             <img src="/email-icon.png" alt="email icon" />
           </div>
         </div>
+
         <div className="form-group">
           <label>Password</label>
           <div className="input-icon">
-            <input type="password" placeholder="Enter your password" />
+            <input
+              type="password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
             <img src="/lock-icon.png" alt="lock icon" />
           </div>
         </div>
+
         <div className="options">
           <label><input type="checkbox" /> Remember me?</label>
-          <a href="#">Forgot Password?</a>
+            <Link
+              href="/forget-password"
+              style={{ color: '#15240cff', textDecoration: 'underline', cursor: 'pointer' }}
+            >
+              Forgot Password?
+            </Link>
+            <Link href="/register" style={{ color: '#15240cff', textDecoration: 'underline' }}>
+              Back to Register
+            </Link>
         </div>
-        <button className="btn-black">Login Now</button>
-        <div className="divider">OR</div>
-        <button className="btn-light">Signup Now</button>
+
+        <button className="btn-black" onClick={handleLogin}>Login Now</button>
+
+        {message && <p style={{ color: 'red', marginTop: 10 }}>{message}</p>}
       </div>
       <div className="image-section">
-        <img src="/login.jpg" alt="team" />
-      </div>
+      <img src="/background.jpg" alt="team" />
     </div>
-  );
-};
+    </div>
+  )
+}
 
-export default Login;
+
+export default Login

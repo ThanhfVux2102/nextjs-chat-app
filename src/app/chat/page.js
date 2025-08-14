@@ -1,32 +1,63 @@
 'use client'
 
+import { useState } from 'react'
+import ProtectedRoute from '@/components/ProtectedRoute'
 import Sidebar from '../components/Sidebar'
 import ChatBox from '../components/ChatBox'
 import UserPanel from '../components/UserPanel'
 
 export default function ChatPage() {
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true)
+
+  const toggleRightPanel = () => {
+    setIsRightPanelOpen(!isRightPanelOpen)
+  }
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        height: '100vh',
-        fontFamily: 'sans-serif',
-        backgroundColor: '#fff',
-        color: '#000',
-      }}
-    >
-      <div style={{ flex: 2, borderRight: '1px solid #ddd' }}>
-        <Sidebar />
+    <ProtectedRoute>
+      <div
+        style={{
+          display: 'flex',
+          height: '100vh',
+          fontFamily: 'sans-serif',
+          backgroundColor: '#fff',
+          color: '#000',
+        }}
+      >
+       
+        <div style={{ 
+          flex: 2, 
+          borderRight: '1px solid #ddd',
+          backgroundColor: '#fff',
+          minWidth: '280px'
+        }}>
+          <Sidebar />
+        </div>
+        <div style={{ 
+          flex: 5, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          borderRight: isRightPanelOpen ? '1px solid #ddd' : 'none',
+          backgroundColor: '#f8f9fa'
+        }}>
+          <ChatBox 
+            toggleRightPanel={toggleRightPanel}
+            isRightPanelOpen={isRightPanelOpen}
+          />
+        </div>
+        {isRightPanelOpen && (
+          <div style={{ 
+            flex: 3,
+            backgroundColor: '#fff',
+            minWidth: '300px'
+          }}>
+            <UserPanel 
+              toggleRightPanel={toggleRightPanel}
+              isRightPanelOpen={isRightPanelOpen}
+            />
+          </div>
+        )}
       </div>
-
-     
-      <div style={{ flex: 5, display: 'flex', flexDirection: 'column', borderRight: '1px solid #ddd' }}>
-        <ChatBox />
-      </div>
-
-      <div style={{ flex: 3 }}>
-        <UserPanel />
-      </div>
-    </div>
+    </ProtectedRoute>
   )
 }
