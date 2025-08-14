@@ -29,6 +29,46 @@ export function ChatProvider({ children }) {
   const [sentMessages, setSentMessages] = useState(new Set()) // Track messages we sent
   const [recentSentContent, setRecentSentContent] = useState(new Set()) // Track recent sent content
   const [recentMessages, setRecentMessages] = useState([]) // Track recent messages for echo detection
+  
+  // Local storage keys per user
+  const getChatsStorageKey = () => currentUser ? `fechat_chats_${currentUser.id}` : null
+  const getMessagesStorageKey = (chatId) => currentUser && chatId ? `fechat_msgs_${currentUser.id}_${chatId}` : null
+
+  const persistMessagesForChat = (chatId, allMessages) => {
+    try {
+      const key = getMessagesStorageKey(chatId)
+      if (!key) return
+      const perChat = (allMessages || []).filter(m => m.chat_id === chatId)
+      // Dedupe and keep last 200
+      const seen = new Set()
+      const deduped = []
+      perChat.forEach(m => {
+        const k = `${m.id}-${m.timestamp}-${m.text}`
+        if (!seen.has(k)) {
+          seen.add(k)
+          deduped.push(m)
+        }
+      })
+      const last200 = deduped.slice(-200)
+      localStorage.setItem(key, JSON.stringify(last200))
+    } catch (e) {
+      console.warn('persistMessagesForChat failed:', e?.message)
+    }
+  }
+
+  const loadPersistedMessages = (chatId) => {
+    try {
+      const key = getMessagesStorageKey(chatId)
+      if (!key) return []
+      const raw = localStorage.getItem(key)
+      if (!raw) return []
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) return []
+      return parsed
+    } catch {
+      return []
+    }
+  }
   // Helper: add or update a chat item without creating duplicates
   const upsertChat = (incomingChat) => {
     if (!incomingChat) return
@@ -42,6 +82,23 @@ export function ChatProvider({ children }) {
         return updated
       }
       return [incomingChat, ...previousChats]
+    })
+  }
+
+  const updateChatLastMessage = (chatId, text, timestamp = new Date().toISOString()) => {
+    if (!chatId) return
+    setChats((previousChats) => {
+      const idx = previousChats.findIndex(c => (c.chat_id || c.id) === chatId)
+      if (idx === -1) return previousChats
+      const updatedChat = {
+        ...previousChats[idx],
+        last_message: text,
+        last_message_time: timestamp
+      }
+      const next = [...previousChats]
+      next.splice(idx, 1)
+      // move updated chat to top
+      return [updatedChat, ...next]
     })
   }
 
@@ -200,7 +257,21 @@ export function ChatProvider({ children }) {
         setMessages((previousMessages) => {
           if (chatIdFromPayload) {
             const others = previousMessages.filter(m => m.chat_id !== chatIdFromPayload)
-            return [...others, ...normalized]
+            // Update last message for that chat
+            if (normalized.length > 0) {
+              const last = normalized[normalized.length - 1]
+              updateChatLastMessage(chatIdFromPayload, last.text, last.timestamp)
+            }
+            const updated = [...others, ...normalized]
+            // Persist the normalized list for this chat
+            try {
+              const perChat = updated.filter(m => m.chat_id === chatIdFromPayload)
+              const key = getMessagesStorageKey(chatIdFromPayload)
+              if (key) {
+                localStorage.setItem(key, JSON.stringify(perChat.slice(-200)))
+              }
+            } catch {}
+            return updated
           }
 
           // If we don't know chat_id from payload, just append but avoid duplicates
@@ -306,6 +377,10 @@ export function ChatProvider({ children }) {
                 const newMessages = [...previousMessages];
                 newMessages[optimisticIndex] = serverMessage;
                 console.log('✅ Replaced optimistic personal message with server confirmation');
+                // Update chat last message
+                updateChatLastMessage(messageChatId, messageContent, serverMessage.timestamp);
+                // Persist
+                persistMessagesForChat(messageChatId, newMessages)
                 return newMessages;
               }
               
@@ -321,7 +396,7 @@ export function ChatProvider({ children }) {
           console.log('✅ Adding personal message from other user to state');
           
           // Check if this message already exists in our state (prevent duplicates)
-          setMessages((previousMessages) => {
+            setMessages((previousMessages) => {
             // More specific duplicate check: same content, same chat, same sender, within 5 seconds
             const messageExists = previousMessages.some(msg => 
               msg.text === messageContent && 
@@ -351,7 +426,11 @@ export function ChatProvider({ children }) {
             console.log('🔍 Created newMessage object:', newMessage);
             console.log('🔍 Final newMessage.text:', newMessage.text);
             
-            return [...previousMessages, newMessage];
+            // Update chat last message
+            updateChatLastMessage(messageChatId, messageContent, newMessage.timestamp);
+              const updated = [...previousMessages, newMessage]
+              persistMessagesForChat(messageChatId, updated)
+              return updated
           });
         } else {
           console.log('❌ No messageData found in personal_message');
@@ -433,6 +512,9 @@ export function ChatProvider({ children }) {
                 const newMessages = [...previousMessages];
                 newMessages[optimisticIndex] = serverMessage;
                 console.log('✅ Replaced optimistic message with server confirmation');
+                // Update chat last message
+                updateChatLastMessage(messageChatId, messageContent, serverMessage.timestamp);
+                persistMessagesForChat(messageChatId, newMessages)
                 return newMessages;
               }
               
@@ -479,7 +561,11 @@ export function ChatProvider({ children }) {
             console.log('🔍 Created group newMessage object:', newMessage);
             console.log('🔍 Final group newMessage.text:', newMessage.text);
             
-            return [...previousMessages, newMessage];
+            // Update chat last message
+            updateChatLastMessage(messageChatId, messageContent, newMessage.timestamp);
+            const updated = [...previousMessages, newMessage]
+            persistMessagesForChat(messageChatId, updated)
+            return updated
           });
         } else {
           console.log('❌ No messageData found in group_message');
@@ -515,7 +601,12 @@ export function ChatProvider({ children }) {
             // Ensure text is not overridden by spread operator
             text: messageContent
           }
-          setMessages((previousMessages) => [...previousMessages, newMessage])
+          setMessages((previousMessages) => {
+            const updated = [...previousMessages, newMessage]
+            persistMessagesForChat(messageChatId, updated)
+            return updated
+          })
+          updateChatLastMessage(messageChatId, messageContent, newMessage.timestamp)
         }
       })
       websocketService.onMessage('new_chat_room', (payload) => {
@@ -566,11 +657,28 @@ export function ChatProvider({ children }) {
         nextCursor: response.next_cursor 
       })
       
-      if (cursor) {
-        setChats(prev => [...prev, ...(response.chats || [])])
-      } else {
-        setChats(response.chats || [])
-      }
+      setChats(prev => {
+        const existing = Array.isArray(prev) ? prev : []
+        const incoming = response.chats || []
+        const idOf = (c) => c.chat_id || c.id
+        const map = new Map()
+        existing.forEach(c => map.set(idOf(c), c))
+        incoming.forEach(item => {
+          const id = idOf(item)
+          const match = map.get(id)
+          if (match) {
+            map.set(id, {
+              ...match,
+              ...item,
+              last_message: item.last_message || match.last_message || '',
+              last_message_time: item.last_message_time || match.last_message_time || item.last_message_time
+            })
+          } else {
+            map.set(id, item)
+          }
+        })
+        return Array.from(map.values())
+      })
       
       setNextCursor(response.next_cursor || null)
       
@@ -629,12 +737,16 @@ export function ChatProvider({ children }) {
             seen.add(key)
             return true
           })
-          return [...others, ...deduped]
+          const updated = [...others, ...deduped]
+          persistMessagesForChat(chatId, updated)
+          return updated
         })
       } else {
         setMessages(prev => {
           const others = prev.filter(m => m.chat_id !== chatId)
-          return [...others, ...normalized]
+          const updated = [...others, ...normalized]
+          persistMessagesForChat(chatId, updated)
+          return updated
         })
       }
 
@@ -700,7 +812,20 @@ export function ChatProvider({ children }) {
     }
     
     // Add message to local state immediately (optimistic update)
-    setMessages(prev => [...prev, newMessage]);
+    setMessages(prev => {
+      const updated = [...prev, newMessage]
+      // Persist optimistic immediately
+      try {
+        const key = getMessagesStorageKey(message.chat_id)
+        if (key) {
+          const perChat = updated.filter(m => m.chat_id === message.chat_id)
+          localStorage.setItem(key, JSON.stringify(perChat.slice(-200)))
+        }
+      } catch {}
+      return updated
+    });
+    // Update sidebar last message immediately
+    updateChatLastMessage(message.chat_id, message.text, newMessage.timestamp)
     
     // Track this content as recently sent to prevent echo
     addToRecentSent(message.text, message.chat_id);
@@ -824,6 +949,14 @@ export function ChatProvider({ children }) {
     setCurrentChat(chat)
     if (chat && chat.chat_id) {
       console.log('🔍 setCurrentChatUser: Requesting old messages via WebSocket for chat', chat.chat_id)
+      // Load from local cache immediately for instant history
+      const cached = loadPersistedMessages(chat.chat_id)
+      if (cached.length > 0) {
+        setMessages(prev => {
+          const others = prev.filter(m => m.chat_id !== chat.chat_id)
+          return [...others, ...cached]
+        })
+      }
       websocketService.loadChat(chat.chat_id)
       // Initialize pagination state for this chat
       setMessagePagination(prev => ({
