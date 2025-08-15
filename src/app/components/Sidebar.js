@@ -53,7 +53,7 @@ export default function Sidebar() {
         console.log('🔍 Search results type:', typeof results)
         console.log('🔍 Search results is array:', Array.isArray(results))
         console.log('🔍 Search results keys:', results ? Object.keys(results) : 'null/undefined')
-        
+
         // Handle different response formats
         let users = []
         if (Array.isArray(results)) {
@@ -68,7 +68,7 @@ export default function Sidebar() {
           console.log('🔍 No recognizable array found in results, using empty array')
           users = []
         }
-        
+
         console.log('🔍 Processed users array:', users)
         setSearchResults(users)
 
@@ -84,7 +84,7 @@ export default function Sidebar() {
         console.log('🔍 Search results set, showUserSearch set to true')
       } catch (err) {
         console.error('Error searching users:', err)
-        
+
         // Check if it's an authentication error
         if (err.status === 401 || err.message?.includes('Authentication expired')) {
           alert('Your session has expired. Please log in again.')
@@ -92,7 +92,7 @@ export default function Sidebar() {
           router.push('/login')
           return
         }
-        
+
         setSearchResults([])
         setChatSearchResults([])
       } finally {
@@ -118,7 +118,7 @@ export default function Sidebar() {
         console.log('🔍 Modal search results type:', typeof results)
         console.log('🔍 Modal search results is array:', Array.isArray(results))
         console.log('🔍 Modal search results keys:', results ? Object.keys(results) : 'null/undefined')
-        
+
         // Handle different response formats
         let users = []
         if (Array.isArray(results)) {
@@ -133,12 +133,12 @@ export default function Sidebar() {
           console.log('🔍 No recognizable array found in modal results, using empty array')
           users = []
         }
-        
+
         console.log('🔍 Processed modal users array:', users)
         setModalSearchResults(users)
       } catch (err) {
         console.error('Error searching users in modal:', err)
-        
+
         // Check if it's an authentication error
         if (err.status === 401 || err.message?.includes('Authentication expired')) {
           alert('Your session has expired. Please log in again.')
@@ -146,7 +146,7 @@ export default function Sidebar() {
           router.push('/login')
           return
         }
-        
+
         setModalSearchResults([])
       } finally {
         setModalSearching(false)
@@ -164,9 +164,13 @@ export default function Sidebar() {
   }
 
   const handleCreateChat = async (user) => {
+    console.log('🎯 USER CLICKED "Chat" BUTTON!')
     console.log('🔍 handleCreateChat called with user:', user)
     console.log('🔍 User ID:', user.id)
     console.log('🔍 User object keys:', Object.keys(user))
+    console.log('🔍 SIDEBAR DEBUG: currentUser from useAuth():', JSON.stringify(currentUser, null, 2))
+    console.log('🔍 SIDEBAR DEBUG: currentUser?.id:', currentUser?.id)
+    console.log('🔍 SIDEBAR DEBUG: currentUser?.user_id:', currentUser?.user_id)
     try {
       const newChat = await createChat(user.id, user)
       console.log('🔍 Chat creation successful, newChat:', newChat)
@@ -250,15 +254,15 @@ export default function Sidebar() {
     <>
       <div style={{ padding: 10, height: '100%', display: 'flex', flexDirection: 'column' }}>
         {/* Header with Messages title and buttons */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
           marginBottom: 20,
           position: 'relative'
         }}>
           <h3 style={{ fontSize: 30, fontWeight: 700, margin: 0 }}>Messages</h3>
-          
+
           {/* Buttons container */}
           <div style={{ display: 'flex', gap: 8 }}>
             {/* Add button */}
@@ -284,7 +288,7 @@ export default function Sidebar() {
             >
               +
             </button>
-            
+
             {/* Settings button with dropdown */}
             <div style={{ position: 'relative' }}>
               <button
@@ -308,7 +312,7 @@ export default function Sidebar() {
               >
                 ⚙️
               </button>
-              
+
               {/* Settings dropdown */}
               {showSettingsDropdown && (
                 <div style={{
@@ -463,7 +467,7 @@ export default function Sidebar() {
           </button>
         </div>
 
-        
+
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading && !showUserSearch && !searchQuery.trim() ? (
             <div style={{ textAlign: 'center', padding: 20, color: '#666' }}>Loading chats...</div>
@@ -807,7 +811,7 @@ export default function Sidebar() {
       </div>
 
       {/* User Search Modal */}
-        {showUserModal && (
+      {showUserModal && (
         <div style={{
           position: 'fixed',
           top: 0,
