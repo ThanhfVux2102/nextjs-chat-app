@@ -621,14 +621,17 @@ export default function Sidebar() {
                         handleCreateChat(item)
                       }}
                       style={{
-                        padding: '6px 12px',
+                        padding: '2px 6px',
                         backgroundColor: '#28a745',
                         color: '#fff',
                         border: 'none',
-                        borderRadius: 4,
+                        borderRadius: 3,
                         cursor: 'pointer',
-                        fontSize: 11,
+                        fontSize: 9,
                         marginLeft: 'auto',
+                        minWidth: '30px',
+                        maxWidth: '35px',
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       Chat
