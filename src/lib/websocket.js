@@ -13,23 +13,47 @@ class WebSocketService {
   connect(userId = null) {
     // Disconnect existing connection if different user
     if (this.currentUserId && this.currentUserId !== userId) {
-      console.log(`🔄 [User: ${this.currentUserId}] Disconnecting previous user connection`);
       this.disconnect();
     }
-    
+
     if (userId) {
       this.currentUserId = userId;
     }
-    
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'wss://chat-app-backend-3vsf.onrender.com/ws';
-    console.log(`🔌 [User: ${this.currentUserId}] Attempting WebSocket connection to:`, wsUrl);
-    
+
+    // Build WebSocket URL
+    let wsUrl = process.env.NEXT_PUBLIC_WS_URL;
+    if (!wsUrl) {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL;
+      if (apiBase) {
+        try {
+          const urlObj = new URL(apiBase);
+          const wsProtocol = urlObj.protocol === 'https:' ? 'wss:' : 'ws:';
+          wsUrl = `${wsProtocol}//${urlObj.host}/ws`;
+        } catch {
+          wsUrl = 'wss://chat-app-backend-3vsf.onrender.com/ws';
+        }
+      } else {
+        wsUrl = 'wss://chat-app-backend-3vsf.onrender.com/ws';
+      }
+    }
+
+    // Append bearer token as a fallback auth mechanism if available
+    try {
+      const token = (typeof localStorage !== 'undefined') ? localStorage.getItem('authToken') : null;
+      if (token) {
+        const urlWithToken = new URL(wsUrl);
+        if (!urlWithToken.searchParams.has('token')) {
+          urlWithToken.searchParams.set('token', token);
+        }
+        wsUrl = urlWithToken.toString();
+      }
+    } catch { }
+
     try {
       // Cookie-based auth: just open the WS URL; browser will include cookies for this domain
       this.ws = new WebSocket(wsUrl);
-      
+
       this.ws.onopen = () => {
-        console.log(`✅ [User: ${this.currentUserId}] WebSocket connected successfully to:`, wsUrl);
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.notifyConnectionHandlers('connected');
@@ -38,7 +62,6 @@ class WebSocketService {
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log(`📨 [User: ${this.currentUserId}] WebSocket received message:`, data);
           this.handleMessage(data);
         } catch (error) {
           console.error(`❌ [User: ${this.currentUserId}] Error parsing WebSocket message:`, error);
@@ -46,7 +69,6 @@ class WebSocketService {
       };
 
       this.ws.onclose = (event) => {
-        console.log(`🔌 [User: ${this.currentUserId}] WebSocket disconnected:`, event.code, event.reason);
         this.isConnected = false;
         this.notifyConnectionHandlers('disconnected');
         this.attemptReconnect();
@@ -64,7 +86,6 @@ class WebSocketService {
 
   disconnect() {
     if (this.ws) {
-      console.log(`🔌 [User: ${this.currentUserId}] Disconnecting WebSocket`);
       this.ws.close();
       this.ws = null;
       this.isConnected = false;
@@ -74,8 +95,7 @@ class WebSocketService {
   attemptReconnect() {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
-      console.log(`Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-      
+
       setTimeout(() => {
         this.connect();
       }, this.reconnectDelay * this.reconnectAttempts);
@@ -88,7 +108,6 @@ class WebSocketService {
   sendMessage(type, data) {
     if (this.isConnected && this.ws) {
       const message = { type, ...data };
-      console.log('📤 WebSocket sending message:', message);
       this.ws.send(JSON.stringify(message));
     } else {
       console.error('❌ WebSocket not connected - cannot send message');
@@ -97,13 +116,11 @@ class WebSocketService {
 
   // Load chat messages
   loadChat(chatId) {
-    console.log('📤 Loading chat messages for chat_id:', chatId);
     this.sendMessage('load_chat', { chat_id: chatId });
   }
 
   // Send new message
   sendNewMessage(chatId, content) {
-    console.log('📤 Sending new message:', { chatId, content });
     this.sendMessage('new_message', {
       chat_id: chatId,
       data: {
@@ -127,9 +144,31 @@ class WebSocketService {
 
   // Handle incoming messages
   handleMessage(data) {
-    const handler = this.messageHandlers.get(data.type);
-    if (handler) {
-      handler(data);
+    // If backend returns a raw array for load_chat, normalize to chat_messages
+    if (Array.isArray(data)) {
+      const chatId = data[0]?.chat_id;
+      const handler = this.messageHandlers.get('chat_messages');
+      if (handler) {
+        handler({ type: 'chat_messages', chat_id: chatId, messages: data });
+      }
+      return;
+    }
+
+    // Try direct type dispatch first
+    const typedHandler = data && data.type ? this.messageHandlers.get(data.type) : null;
+    if (typedHandler) {
+      typedHandler(data);
+      return;
+    }
+
+    // Fallback: if payload has messages/items but no type, treat as chat_messages
+    if (data && (Array.isArray(data.messages) || Array.isArray(data.items))) {
+      const messages = data.messages || data.items || [];
+      const chatId = data.chat_id || (messages[0]?.chat_id);
+      const handler = this.messageHandlers.get('chat_messages');
+      if (handler) {
+        handler({ type: 'chat_messages', chat_id: chatId, messages });
+      }
     }
   }
 
@@ -156,7 +195,6 @@ const websocketInstances = new Map();
 // Factory function to get or create WebSocket instance for a user
 function getWebSocketInstance(userId) {
   if (!websocketInstances.has(userId)) {
-    console.log(`🏭 Creating new WebSocket instance for user: ${userId}`);
     websocketInstances.set(userId, new WebSocketService());
   }
   return websocketInstances.get(userId);
@@ -175,7 +213,6 @@ const websocketService = {
   disconnect: () => {
     // Disconnect all instances
     websocketInstances.forEach((instance, userId) => {
-      console.log(`🔌 Disconnecting WebSocket for user: ${userId}`);
       instance.disconnect();
     });
     websocketInstances.clear();

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useChat } from '@/contexts/ChatContext'
 import { useAuth } from '@/contexts/AuthContext'
+import websocketService from '@/lib/websocket'
 import { useRouter } from 'next/navigation'
 
 export default function Sidebar() {
@@ -39,20 +40,16 @@ export default function Sidebar() {
   const [openChatOptionsId, setOpenChatOptionsId] = useState(null)
 
   const handleSearch = async (query) => {
-    console.log('🔍 Search triggered with query:', query)
     setSearchQuery(query)
     if (query.trim()) {
       setSearching(true)
       try {
-        console.log('🔍 Calling searchUsers with query:', query)
+
         // Run user search while also filtering chats locally
         const [results] = await Promise.all([
           searchUsers(query),
         ])
-        console.log('🔍 Search results received:', results)
-        console.log('🔍 Search results type:', typeof results)
-        console.log('🔍 Search results is array:', Array.isArray(results))
-        console.log('🔍 Search results keys:', results ? Object.keys(results) : 'null/undefined')
+
 
         // Handle different response formats
         let users = []
@@ -65,11 +62,9 @@ export default function Sidebar() {
         } else if (results && results.items && Array.isArray(results.items)) {
           users = results.items
         } else {
-          console.log('🔍 No recognizable array found in results, using empty array')
           users = []
         }
 
-        console.log('🔍 Processed users array:', users)
         setSearchResults(users)
 
         // Filter chats locally based on name or last_message match
@@ -81,7 +76,6 @@ export default function Sidebar() {
 
         // Enter combined search view
         setShowUserSearch(true)
-        console.log('🔍 Search results set, showUserSearch set to true')
       } catch (err) {
         console.error('Error searching users:', err)
 
@@ -99,7 +93,6 @@ export default function Sidebar() {
         setSearching(false)
       }
     } else {
-      console.log('🔍 Empty query, clearing search results')
       setSearchResults([])
       setChatSearchResults([])
       setShowUserSearch(false)
@@ -107,17 +100,11 @@ export default function Sidebar() {
   }
 
   const handleModalSearch = async (query) => {
-    console.log('🔍 Modal search triggered with query:', query)
     setModalSearchQuery(query)
     if (query.trim()) {
       setModalSearching(true)
       try {
-        console.log('🔍 Calling searchUsers with query:', query)
         const results = await searchUsers(query)
-        console.log('🔍 Modal search results received:', results)
-        console.log('🔍 Modal search results type:', typeof results)
-        console.log('🔍 Modal search results is array:', Array.isArray(results))
-        console.log('🔍 Modal search results keys:', results ? Object.keys(results) : 'null/undefined')
 
         // Handle different response formats
         let users = []
@@ -130,11 +117,9 @@ export default function Sidebar() {
         } else if (results && results.items && Array.isArray(results.items)) {
           users = results.items
         } else {
-          console.log('🔍 No recognizable array found in modal results, using empty array')
           users = []
         }
 
-        console.log('🔍 Processed modal users array:', users)
         setModalSearchResults(users)
       } catch (err) {
         console.error('Error searching users in modal:', err)
@@ -152,7 +137,6 @@ export default function Sidebar() {
         setModalSearching(false)
       }
     } else {
-      console.log('🔍 Empty modal query, clearing results')
       setModalSearchResults([])
     }
   }
@@ -164,16 +148,8 @@ export default function Sidebar() {
   }
 
   const handleCreateChat = async (user) => {
-    console.log('🎯 USER CLICKED "Chat" BUTTON!')
-    console.log('🔍 handleCreateChat called with user:', user)
-    console.log('🔍 User ID:', user.id)
-    console.log('🔍 User object keys:', Object.keys(user))
-    console.log('🔍 SIDEBAR DEBUG: currentUser from useAuth():', JSON.stringify(currentUser, null, 2))
-    console.log('🔍 SIDEBAR DEBUG: currentUser?.id:', currentUser?.id)
-    console.log('🔍 SIDEBAR DEBUG: currentUser?.user_id:', currentUser?.user_id)
     try {
       const newChat = await createChat(user.id, user)
-      console.log('🔍 Chat creation successful, newChat:', newChat)
       if (newChat) {
         setCurrentChatUser(newChat)
         setShowUserSearch(false)
@@ -202,7 +178,6 @@ export default function Sidebar() {
   }
 
   const handleAddClick = () => {
-    console.log('🔍 Add button clicked, opening group modal')
     setShowGroupModal(true)
     setModalSearchQuery('')
     setModalSearchResults([])
@@ -242,13 +217,6 @@ export default function Sidebar() {
   }
 
   const displayChats = showUserSearch ? searchResults : (Array.isArray(chats) ? chats : [])
-  console.log('🔍 Display debug:', {
-    showUserSearch,
-    searchResults,
-    chats: Array.isArray(chats) ? chats : [],
-    displayChats,
-    displayChatsLength: displayChats.length
-  })
 
   return (
     <>
@@ -346,11 +314,42 @@ export default function Sidebar() {
                     Reset Password
                   </button>
                   <button
+                    onClick={() => {
+                      try {
+                        const statuses = websocketService.getConnectionStatus()
+                        const currentId = currentUser?.id ?? currentUser?.user_id ?? currentUser?._id
+                        const status = currentId ? (statuses?.[currentId] || statuses?.[String(currentId)]) : null
+                        if (status) {
+                          alert(`WebSocket Connected: ${status.isConnected ? 'Yes' : 'No'}\nReconnect Attempts: ${status.reconnectAttempts}`)
+                        } else if (statuses && Object.keys(statuses).length > 0) {
+                          alert(`WebSocket Instances: ${Object.keys(statuses).length}`)
+                        } else {
+                          alert('No active WebSocket connections')
+                        }
+                      } catch (e) {
+                        alert('Unable to get WebSocket status')
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      color: '#333',
+                      borderBottom: '1px solid #eee'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    Check WebSocket
+                  </button>
+                  <button
                     onClick={async () => {
-                      console.log('🔍 Testing backend endpoints...')
                       try {
                         const results = await testBackendEndpoints()
-                        console.log('🔍 Backend test results:', results)
                         alert('Backend test completed. Check console for results.')
                       } catch (error) {
                         console.error('🔍 Backend test failed:', error)
@@ -433,7 +432,6 @@ export default function Sidebar() {
         <div style={{ marginBottom: 20, display: 'flex', gap: 10 }}>
           <button
             onClick={() => {
-              console.log('🔍 Chats button clicked, setting showUserSearch to false')
               setShowUserSearch(false)
             }}
             style={{
@@ -450,7 +448,6 @@ export default function Sidebar() {
           </button>
           <button
             onClick={() => {
-              console.log('🔍 Find Users button clicked, setting showUserSearch to true')
               setShowUserSearch(true)
             }}
             style={{

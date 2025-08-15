@@ -2,8 +2,16 @@
 
 import { createContext, useContext, useState, useEffect } from 'react'
 import { checkSession, getCurrentUser } from '@/lib/api'
+import websocketService from '@/lib/websocket'
 
 const AuthContext = createContext()
+
+function normalizeUser(user) {
+  if (!user || typeof user !== 'object') return user
+  const id = user.id ?? user.user_id ?? user._id ?? null
+  if (id == null) return user
+  return { ...user, id }
+}
 
 export function useAuth() {
   const context = useContext(AuthContext)
@@ -27,7 +35,8 @@ export function AuthProvider({ children }) {
         const saved = localStorage.getItem('chatUser')
         if (saved) {
           const parsed = JSON.parse(saved)
-          setUser(parsed)
+          const normalized = normalizeUser(parsed)
+          setUser(normalized)
           setIsAuthenticated(true)
           // Allow app to render immediately with local session
           setLoading(false)
@@ -45,9 +54,10 @@ export function AuthProvider({ children }) {
           // Handle both nested (legacy) and flat response structures
           const userData = currentUserData.user || (currentUserData.user_id ? currentUserData : null)
           if (userData) {
-            setUser(userData)
+            const normalized = normalizeUser(userData)
+            setUser(normalized)
             setIsAuthenticated(true)
-            localStorage.setItem('chatUser', JSON.stringify(userData))
+            localStorage.setItem('chatUser', JSON.stringify(normalized))
             if (!cancelled) setLoading(false)
             return
           }
@@ -59,13 +69,13 @@ export function AuthProvider({ children }) {
       try {
         const sessionData = await checkSession()
         if (!cancelled && sessionData && sessionData.user) {
-          setUser(sessionData.user)
+          const normalized = normalizeUser(sessionData.user)
+          setUser(normalized)
           setIsAuthenticated(true)
-          localStorage.setItem('chatUser', JSON.stringify(sessionData.user))
+          localStorage.setItem('chatUser', JSON.stringify(normalized))
           if (!cancelled) setLoading(false)
         } else if (!cancelled) {
           // Do NOT force logout; keep local session so user stays signed in across reloads
-          console.info('No backend session, keeping local session')
           setLoading(false)
         }
       } catch (error) {
@@ -90,7 +100,8 @@ export function AuthProvider({ children }) {
         try {
           if (e.newValue) {
             const parsed = JSON.parse(e.newValue)
-            setUser(parsed)
+            const normalized = normalizeUser(parsed)
+            setUser(normalized)
             setIsAuthenticated(true)
           } else {
             setUser(null)
@@ -108,10 +119,12 @@ export function AuthProvider({ children }) {
   }, [])
 
   const login = async (userData) => {
-    // Optimistically set
-    setUser(userData)
+    // Ensure we immediately have a normalized id for downstream consumers
+    const initial = userData?.user || userData
+    const normalizedInitial = normalizeUser(initial)
+    setUser(normalizedInitial)
     setIsAuthenticated(true)
-    localStorage.setItem('chatUser', JSON.stringify(userData))
+    localStorage.setItem('chatUser', JSON.stringify(normalizedInitial))
     // Immediately refresh from backend to get canonical id (e.g., ObjectId)
     try {
       const currentUserData = await getCurrentUser()
@@ -119,34 +132,30 @@ export function AuthProvider({ children }) {
         // Handle both nested (legacy) and flat response structures
         const refreshedUserData = currentUserData.user || (currentUserData.user_id ? currentUserData : null)
         if (refreshedUserData) {
-          setUser(refreshedUserData)
-          localStorage.setItem('chatUser', JSON.stringify(refreshedUserData))
+          const normalizedRefreshed = normalizeUser(refreshedUserData)
+          setUser(normalizedRefreshed)
+          localStorage.setItem('chatUser', JSON.stringify(normalizedRefreshed))
         }
       }
     } catch { }
   }
 
   const logout = () => {
+    try {
+      websocketService.disconnect()
+    } catch { }
     setUser(null)
     setIsAuthenticated(false)
-    localStorage.removeItem('chatUser')
-
-    // Clear all chat-related localStorage data
     try {
-      const keys = Object.keys(localStorage)
-      keys.forEach(key => {
-        if (key.startsWith('chatMessages_')) {
-          localStorage.removeItem(key)
-        }
-      })
-      console.log('🗑️ Cleared all persisted chat messages on logout')
+      // Only clear this app's keys to avoid wiping other origins' data
+      localStorage.removeItem('chatUser')
     } catch (error) {
-      console.warn('Failed to clear persisted messages on logout:', error)
+      console.warn('Failed to clear localStorage on logout:', error)
     }
   }
 
   const updateUser = (updates) => {
-    const updatedUser = { ...user, ...updates }
+    const updatedUser = normalizeUser({ ...user, ...updates })
     setUser(updatedUser)
     localStorage.setItem('chatUser', JSON.stringify(updatedUser))
   }
@@ -158,8 +167,9 @@ export function AuthProvider({ children }) {
         // Handle both nested (legacy) and flat response structures
         const userData = currentUserData.user || (currentUserData.user_id ? currentUserData : null)
         if (userData) {
-          setUser(userData)
-          localStorage.setItem('chatUser', JSON.stringify(userData))
+          const normalized = normalizeUser(userData)
+          setUser(normalized)
+          localStorage.setItem('chatUser', JSON.stringify(normalized))
           return userData
         }
       }
