@@ -42,8 +42,7 @@ const Login = () => {
         avatar: '/avatars/default.jpg', // Default avatar
       }
 
-      console.log('🔍 LOGIN DEBUG: Server response from /api/auth/me:', JSON.stringify(currentUserData, null, 2))
-      console.log('🔍 LOGIN DEBUG: Created userData object:', JSON.stringify(userData, null, 2))
+
 
       authLogin(userData)
 

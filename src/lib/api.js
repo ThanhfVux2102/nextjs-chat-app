@@ -29,7 +29,6 @@ export async function login(email, password) {
   });
 
   const text = await res.text();
-  console.log('Raw response:', text);
 
   let data = {};
   try {
@@ -138,7 +137,7 @@ export async function getChatList(cursor = null) {
     ? `${BASE_URL}/api/chat/me/view?cursor=${encodeURIComponent(cursor)}`
     : `${BASE_URL}/api/chat/me/view`;
 
-  console.log('📞 API: getChatList called with URL:', url);
+
 
   const res = await fetch(url, {
     method: 'GET',
@@ -146,7 +145,7 @@ export async function getChatList(cursor = null) {
     headers: defaultHeaders(),
   });
 
-  console.log('📈 API: getChatList response status:', res.status);
+
 
   if (!res.ok) {
     const errorText = await res.text();
@@ -159,10 +158,8 @@ export async function getChatList(cursor = null) {
   }
 
   const data = await res.json();
-  console.log('📄 API: getChatList raw response:', data);
 
   let chatsRaw = Array.isArray(data.chats) ? data.chats : (Array.isArray(data.items) ? data.items : []);
-  console.log('📝 API: getChatList chatsRaw:', chatsRaw);
 
   const chats = chatsRaw.map((item) => {
     // Detect group chats using multiple indicators since backend doesn't send type
@@ -179,22 +176,7 @@ export async function getChatList(cursor = null) {
 
     const isGroup = isGroupByType || isGroupByField || isGroupByParticipants || isGroupByNameAndCount
 
-    console.log('🔬 Processing chat:', {
-      id: item.chat_id || item.id,
-      name: item.name || item.chat_name,
-      participantCount,
-      participants: item.participants,
-      isGroupByParticipants,
-      isGroupByName,
-      isGroupByNameAndCount,
-      isGroupByType,
-      isGroupByField,
-      finalIsGroup: isGroup,
-      hasName: !!item.name,
-      hasUsername: !!item.username,
-      hasEmail: !!item.email,
-      rawItem: item
-    })
+
 
     return {
       ...item,
@@ -207,7 +189,7 @@ export async function getChatList(cursor = null) {
     }
   });
 
-  console.log('✨ API: getChatList processed chats:', chats);
+
 
   return {
     chats,
@@ -248,7 +230,7 @@ export async function getMessageHistory(chatId = null, cursor = null, limit = 50
         url += `?${params.toString()}`;
       }
 
-      console.log('🔍 API: getMessageHistory trying endpoint:', url);
+
 
       const res = await fetch(url, {
         method: 'GET',
@@ -256,23 +238,17 @@ export async function getMessageHistory(chatId = null, cursor = null, limit = 50
         headers: defaultHeaders(),
       });
 
-      console.log('🔍 API: getMessageHistory response status:', res.status);
+
 
       if (res.ok) {
         const data = await res.json();
-        console.log('🔍 API: getMessageHistory successful with endpoint:', endpoint, {
-          messagesCount: data.messages?.length || 0,
-          chatId,
-          cursor
-        });
         return data;
       } else {
         const errorText = await res.text();
-        console.log('🔍 API: getMessageHistory failed with endpoint:', endpoint, 'Status:', res.status, 'Error:', errorText);
         lastError = new Error(`${endpoint} failed: ${res.status} - ${errorText}`);
       }
     } catch (error) {
-      console.log('🔍 API: getMessageHistory error with endpoint:', endpoint, error.message);
+
       lastError = error;
     }
   }
@@ -284,10 +260,10 @@ export async function getMessageHistory(chatId = null, cursor = null, limit = 50
 
 
 export async function createPersonalChat(participantIds) {
-  console.log('🔍 API: createPersonalChat called with participants:', participantIds)
+
   const normalized = (participantIds || []).map((id) => String(id)).filter(Boolean)
 
-  console.log('🔍 DEBUG: Normalized participants:', normalized)
+
 
   // Validate that we have exactly 2 participants
   if (normalized.length !== 2) {
@@ -312,14 +288,10 @@ export async function createPersonalChat(participantIds) {
     participants: validParticipants
   }
 
-  console.log('🔍 API: POST /api/chat/create/personal with exact API spec:', payload)
+
 
   // Log the request body that will be sent to the server
   const requestBody = JSON.stringify(payload)
-  console.log('📤 CLIENT REQUEST BODY to POST /api/chat/create/personal:')
-  console.log('   Raw JSON string:', requestBody)
-  console.log('   Parsed object:', JSON.parse(requestBody))
-  console.log('   Content-Type: application/json')
 
   const res = await fetch(`${BASE_URL}/api/chat/create/personal`, {
     method: 'POST',
@@ -328,11 +300,10 @@ export async function createPersonalChat(participantIds) {
     body: requestBody,
   })
 
-  console.log('🔍 API: Response status:', res.status)
+
 
   if (res.ok) {
     const text = await res.text()
-    console.log('🔍 API: Personal chat created successfully, response:', text)
     // API docs say response is a string (chat ID)
     return text.trim()
   }
@@ -358,7 +329,7 @@ export async function createPersonalChat(participantIds) {
 }
 
 export async function createGroupChat(participantIds, name, adminIds = []) {
-  console.log('🏗️ API: createGroupChat called with', { participantIds, name, adminIds })
+
   const payload = {
     chat_type: 'group',
     participants: (participantIds || []).map((id) => String(id)),
@@ -373,7 +344,7 @@ export async function createGroupChat(participantIds, name, adminIds = []) {
     body: JSON.stringify(payload),
   })
 
-  console.log('📊 API: createGroupChat response status:', res.status)
+
 
   if (!res.ok) {
     const errorText = await res.text()
@@ -399,7 +370,6 @@ export async function createGroupChat(participantIds, name, adminIds = []) {
   }
 
   const data = await res.json()
-  console.log('✅ API: createGroupChat successful, data:', data)
   return data
 }
 
@@ -441,7 +411,7 @@ export async function deleteChat(chatId) {
 }
 
 export async function getCurrentUser() {
-  console.log('🔍 API: Getting current user from /api/auth/me')
+
 
   const res = await fetch(`${BASE_URL}/api/auth/me`, {
     method: 'GET',
@@ -449,8 +419,7 @@ export async function getCurrentUser() {
     headers: defaultHeaders(),
   });
 
-  console.log('🔍 API: getCurrentUser response status:', res.status)
-  console.log('🔍 API: getCurrentUser response ok:', res.ok)
+
 
   if (!res.ok) {
     const errorText = await res.text();
@@ -463,12 +432,11 @@ export async function getCurrentUser() {
   }
 
   const data = await res.json();
-  console.log('🔍 API: getCurrentUser successful, data:', data)
   return data;
 }
 
 export async function searchUsers(query) {
-  console.log('🔍 API: searchUsers called with query:', query)
+
 
   const candidates = [
     { path: '/api/auth/users', param: 'q' },
@@ -484,7 +452,6 @@ export async function searchUsers(query) {
   for (const c of candidates) {
     try {
       const url = `${BASE_URL}${c.path}?${encodeURIComponent(c.param)}=${encodeURIComponent(query)}`
-      console.log('🔍 API: Trying user search endpoint:', url)
       const res = await fetch(url, {
         method: 'GET',
         credentials: 'include',
@@ -494,11 +461,10 @@ export async function searchUsers(query) {
         }
       })
 
-      console.log(`🔍 API: ${c.path} response status:`, res.status, res.statusText)
+
 
       if (!res.ok) {
         const errorText = await res.text()
-        console.log(`🔍 API: ${c.path} error response:`, errorText)
 
         // If any endpoint returns 401, it means authentication failed
         if (res.status === 401) {
@@ -512,7 +478,6 @@ export async function searchUsers(query) {
       }
 
       const data = await res.json()
-      console.log('🔍 API: Raw user search response:', data)
 
       const list = Array.isArray(data)
         ? data
@@ -548,7 +513,7 @@ export async function searchUsers(query) {
 
 // Test function to check backend connectivity and available endpoints
 export async function testBackendEndpoints() {
-  console.log('🔍 API: Testing backend connectivity...')
+
 
   const testEndpoints = [
     '/api/auth/me',
@@ -564,7 +529,6 @@ export async function testBackendEndpoints() {
   for (const endpoint of testEndpoints) {
     try {
       const url = `${BASE_URL}${endpoint}`;
-      console.log('🔍 API: Testing endpoint:', url);
 
       const res = await fetch(url, {
         method: 'GET',
@@ -578,17 +542,17 @@ export async function testBackendEndpoints() {
         statusText: res.statusText
       };
 
-      console.log('🔍 API: Endpoint result:', endpoint, results[endpoint]);
+
 
     } catch (error) {
       results[endpoint] = {
         error: error.message,
         status: 'ERROR'
       };
-      console.log('🔍 API: Endpoint error:', endpoint, error.message);
+
     }
   }
 
-  console.log('🔍 API: All endpoint test results:', results);
+
   return results;
 }

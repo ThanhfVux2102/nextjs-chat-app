@@ -41,7 +41,6 @@ export function ChatProvider({ children }) {
       const recentMessages = chatMessages.slice(-200)
       const key = getMessagesStorageKey(chatId)
       localStorage.setItem(key, JSON.stringify(recentMessages))
-      console.log(`💾 Persisted ${recentMessages.length} messages for chat ${chatId}`)
     } catch (error) {
       console.warn('Failed to persist messages:', error)
     }
@@ -54,7 +53,6 @@ export function ChatProvider({ children }) {
       const stored = localStorage.getItem(key)
       if (stored) {
         const parsed = JSON.parse(stored)
-        console.log(`📂 Loaded ${parsed.length} persisted messages for chat ${chatId}`)
         return Array.isArray(parsed) ? parsed : []
       }
     } catch (error) {
@@ -68,7 +66,6 @@ export function ChatProvider({ children }) {
     try {
       const key = getMessagesStorageKey(chatId)
       localStorage.removeItem(key)
-      console.log(`🗑️ Cleared persisted messages for chat ${chatId}`)
     } catch (error) {
       console.warn('Failed to clear persisted messages:', error)
     }
@@ -144,12 +141,10 @@ export function ChatProvider({ children }) {
       ...message,
       timestamp: Date.now()
     };
-    console.log('📝 Adding to recent messages:', messageWithTimestamp);
 
     // Use functional update to ensure we have the latest state
     setRecentMessages(prev => {
       const newRecentMessages = [...prev, messageWithTimestamp];
-      console.log('📝 Updated recent messages:', newRecentMessages);
       return newRecentMessages;
     });
 
@@ -161,8 +156,6 @@ export function ChatProvider({ children }) {
 
   const isEchoOfRecentMessage = (content, chatId) => {
     const now = Date.now();
-    console.log('🔍 Checking for echo of content:', content, 'in chat:', chatId);
-    console.log('🔍 Recent messages:', recentMessages);
 
     const recentMessage = recentMessages.find(msg =>
       msg.text === content &&
@@ -170,8 +163,6 @@ export function ChatProvider({ children }) {
       (now - msg.timestamp) < 5000 // Within 5 seconds
     );
 
-    console.log('🔍 Found recent message:', recentMessage);
-    console.log('🔍 Is echo?', !!recentMessage);
 
     return !!recentMessage;
   }
@@ -180,85 +171,24 @@ export function ChatProvider({ children }) {
   const isRecentlySentContent = (content, chatId) => {
     const key = `${content}-${chatId}`;
     const hasContent = recentSentContent.has(key);
-    console.log('🔍 Checking recently sent content:', { content, chatId, key, hasContent });
     return hasContent;
   }
 
-  // Function to check if a sender ID matches the current user (handles different formats)
+  // Function to check if a sender ID matches the current user (strict string compare)
   const isSameUser = (senderId, currentUserId) => {
-    if (!senderId || !currentUserId) return false;
-
-    console.log('🔍 isSameUser check:', {
-      senderId,
-      currentUserId,
-      senderIdType: typeof senderId,
-      currentUserIdType: typeof currentUserId
-    });
-
-    // Convert both to strings for comparison
-    const senderStr = String(senderId).toLowerCase();
-    const currentStr = String(currentUserId).toLowerCase();
-
-    // Direct string comparison
-    if (senderStr === currentStr) {
-      console.log('✅ Direct string match');
-      return true;
-    }
-
-    // If current user ID is numeric, try converting sender ID to number
-    if (!isNaN(currentUserId)) {
-      const senderNum = parseInt(senderStr, 10);
-      if (!isNaN(senderNum) && senderNum === currentUserId) {
-        console.log('✅ Numeric conversion match');
-        return true;
-      }
-    }
-
-    // If sender ID looks like a hex string, try converting current user ID to hex
-    if (senderStr.match(/^[0-9a-f]+$/)) {
-      const currentHex = parseInt(currentUserId).toString(16);
-      console.log('🔍 Hex comparison:', { senderStr, currentHex, currentUserId });
-      if (senderStr === currentHex) {
-        console.log('✅ Hex conversion match');
-        return true;
-      }
-
-      // Try reverse: convert hex sender to number
-      const senderFromHex = parseInt(senderStr, 16);
-      if (!isNaN(senderFromHex) && senderFromHex === currentUserId) {
-        console.log('✅ Reverse hex conversion match');
-        return true;
-      }
-
-      // Try converting current user ID to different hex formats
-      const currentHexUpper = parseInt(currentUserId).toString(16).toUpperCase();
-      if (senderStr.toUpperCase() === currentHexUpper) {
-        console.log('✅ Upper case hex conversion match');
-        return true;
-      }
-    }
-
-    // Special case: if sender ID is a MongoDB ObjectId format, try to extract numeric part
-    if (senderStr.match(/^[0-9a-f]{24}$/)) {
-      // This looks like a MongoDB ObjectId, try to extract timestamp or other parts
-      const timestampPart = senderStr.substring(0, 8);
-      const numericTimestamp = parseInt(timestampPart, 16);
-
-      // Compare with current user ID
-      if (numericTimestamp === currentUserId) {
-        console.log('✅ MongoDB ObjectId timestamp match');
-        return true;
-      }
-    }
-
-    console.log('❌ No match found');
-    return false;
+    if (senderId == null || currentUserId == null) return false;
+    return String(senderId) === String(currentUserId);
   }
 
   // Initialize WebSocket connection only when authenticated
   useEffect(() => {
     if (isAuthenticated && currentUser) {
-      websocketService.connect(currentUser.id)
+      const robustUserId = currentUser?.id ?? currentUser?.user_id ?? currentUser?._id
+      if (!robustUserId) {
+        console.error('Missing user id in auth state; cannot open WebSocket')
+        return
+      }
+      websocketService.connect(robustUserId)
 
       // Handle WebSocket messages
       websocketService.onMessage('chat_messages', (data) => {
@@ -267,98 +197,53 @@ export function ChatProvider({ children }) {
 
         // Normalize messages
         const normalized = incomingMessages.map((msg) => ({
-          id: msg.id || Date.now() + Math.random(),
-          from: msg.sender_id || msg.from || msg.user_id || msg.sender,
-          text: msg.content || msg.text || msg.message || '',
-          content: msg.content || msg.text || msg.message || '',
-          timestamp: msg.timestamp || new Date().toISOString(),
-          chat_id: msg.chat_id || chatIdFromPayload || currentChat?.chat_id,
+          // Spread first so our normalized fields below take precedence
           ...msg,
-          text: msg.content || msg.text || msg.message || ''
+          id: msg.id || Date.now() + Math.random(),
+          chat_id: msg.chat_id || chatIdFromPayload || currentChat?.chat_id,
+          timestamp: msg.timestamp || new Date().toISOString(),
+          content: msg.content || msg.text || msg.message || '',
+          text: msg.content || msg.text || msg.message || '',
+          from: msg.sender_id || msg.from || msg.user_id || msg.sender
         }))
 
-        // If payload is for current chat, replace that chat's messages; otherwise, merge safely
+        // Replace current chat messages with sorted ascending order
         setMessages((previousMessages) => {
-          if (chatIdFromPayload) {
-            const others = previousMessages.filter(m => m.chat_id !== chatIdFromPayload)
-            return [...others, ...normalized]
-          }
-
-          // If we don't know chat_id from payload, just append but avoid duplicates
-          const seen = new Set()
-          const merged = [...previousMessages, ...normalized].filter(m => {
-            const key = `${m.chat_id}-${m.id}-${m.timestamp}-${m.text}`
-            if (seen.has(key)) return false
-            seen.add(key)
-            return true
-          })
-          return merged
+          if (!chatIdFromPayload) return previousMessages
+          const others = previousMessages.filter(m => m.chat_id !== chatIdFromPayload)
+          const sorted = normalized.slice().sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+          return [...others, ...sorted]
         })
       })
 
-      websocketService.onMessage('new_message', (data) => {
-
-        // Handle both formats: data.message and direct data
-        let messageData = data.message || data;
-
-        if (messageData) {
-          // Handle message from API docs format
-          const newMessage = {
-            id: Date.now(),
-            from: messageData.sender_id || messageData.from,
-            text: messageData.content || messageData.text,
-            content: messageData.content || messageData.text,
-            timestamp: messageData.timestamp || new Date().toISOString(),
-            chat_id: messageData.chat_id,
-            ...messageData
-          }
-          setMessages((previousMessages) => [...previousMessages, newMessage])
-        }
-      })
+      // Intentionally omit 'new_message' handler to avoid duplicate echoes; rely on 'personal_message' / 'group_message'
 
       // Handle personal_message type that backend actually sends
       websocketService.onMessage('personal_message', (data) => {
-        console.log('📨 Received personal_message from WebSocket:', data);
 
-        // Handle both formats: data.message and direct data
-        let messageData = data.message || data;
+        // Handle both formats: data.data (broadcast), data.message and direct data
+        let messageData = data.data || data.message || data;
 
         if (messageData) {
-          console.log('🔍 Raw messageData:', messageData);
-          console.log('🔍 messageData.content:', messageData.content);
-          console.log('🔍 messageData.text:', messageData.text);
-          console.log('🔍 messageData.message:', messageData.message);
-
           const messageContent = messageData.content || messageData.text || messageData.message;
-          console.log('🔍 Extracted messageContent:', messageContent);
 
-          const messageChatId = messageData.chat_id || messageData.chatId || currentChat?.chat_id;
+          const messageChatId = data.chat_id || messageData.chat_id || messageData.chatId || currentChat?.chat_id;
           const senderId = messageData.sender_id || messageData.from || messageData.sender;
           const isFromCurrentUser = isSameUser(senderId, currentUser?.id);
 
-          console.log('🔍 Personal message analysis:', {
-            messageContent,
-            messageChatId,
-            senderId,
-            currentUserId: currentUser?.id,
-            isFromCurrentUser
-          });
 
           // PRIMARY: Check if this content was recently sent by current user (most reliable)
           if (isRecentlySentContent(messageContent, messageChatId)) {
-            console.log('🚫 Blocking personal message with recently sent content');
             return;
           }
 
           // SECONDARY: Check if this is an echo of a recently sent message (content-based)
           if (isEchoOfRecentMessage(messageContent, messageChatId)) {
-            console.log('🚫 Blocking personal message as echo of recently sent message (content-based)');
             return;
           }
 
           // TERTIARY: If this is from current user, try to replace optimistic message
           if (isFromCurrentUser) {
-            console.log('🔄 Replacing optimistic personal message with server confirmation');
 
             setMessages((previousMessages) => {
               // Find and replace the optimistic message with the same content
@@ -386,14 +271,12 @@ export function ChatProvider({ children }) {
 
                 const newMessages = [...previousMessages];
                 newMessages[optimisticIndex] = serverMessage;
-                console.log('✅ Replaced optimistic personal message with server confirmation');
                 // Update chat last message
                 updateChatLastMessage(messageChatId, messageContent, serverMessage.timestamp);
                 return newMessages;
               }
 
               // If no optimistic message found, ignore this echo
-              console.log('🚫 No optimistic personal message found to replace, ignoring echo');
               return previousMessages;
             });
 
@@ -401,7 +284,6 @@ export function ChatProvider({ children }) {
           }
 
           // For messages from other users, add normally
-          console.log('✅ Adding personal message from other user to state');
 
           // Check if this message already exists in our state (prevent duplicates)
           setMessages((previousMessages) => {
@@ -431,33 +313,23 @@ export function ChatProvider({ children }) {
               text: messageContent
             }
 
-            console.log('🔍 Created newMessage object:', newMessage);
-            console.log('🔍 Final newMessage.text:', newMessage.text);
+
 
             // Update chat last message
             updateChatLastMessage(messageChatId, messageContent, newMessage.timestamp);
             return [...previousMessages, newMessage];
           });
-        } else {
-          console.log('❌ No messageData found in personal_message');
         }
       })
 
       // Handle group_message type that backend is actually sending
       websocketService.onMessage('group_message', (data) => {
-        console.log('📨 Received group_message from WebSocket:', data);
 
         // Handle both formats: data.message and direct data
         let messageData = data.data || data.message || data;
 
         if (messageData) {
-          console.log('🔍 Raw group messageData:', messageData);
-          console.log('🔍 messageData.content:', messageData.content);
-          console.log('🔍 messageData.text:', messageData.text);
-          console.log('🔍 messageData.message:', messageData.message);
-
           const messageContent = messageData.content || messageData.text || messageData.message;
-          console.log('🔍 Extracted group messageContent:', messageContent);
 
           const messageChatId = data.chat_id || messageData.chat_id || messageData.chatId || currentChat?.chat_id;
 
@@ -467,37 +339,21 @@ export function ChatProvider({ children }) {
           // Check if this message is from the current user by comparing sender ID (handle different formats)
           const isFromCurrentUser = isSameUser(senderId, currentUser?.id);
 
-          console.log('🔍 Group message analysis:', {
-            messageContent,
-            messageChatId,
-            senderId,
-            senderIdType: typeof senderId,
-            currentUserId: currentUser?.id,
-            currentUserIdType: typeof currentUser?.id,
-            isFromCurrentUser,
-            recentSentContentSize: recentSentContent.size,
-            recentMessagesLength: recentMessages.length
-          });
 
           // PRIMARY: Check if this content was recently sent by current user (most reliable)
           const isRecentlySent = isRecentlySentContent(messageContent, messageChatId);
-          console.log('🔍 Recently sent check:', { messageContent, messageChatId, isRecentlySent });
           if (isRecentlySent) {
-            console.log('🚫 Blocking group message with recently sent content');
             return;
           }
 
           // SECONDARY: Check if this is an echo of a recently sent message (content-based)
           const isEcho = isEchoOfRecentMessage(messageContent, messageChatId);
-          console.log('🔍 Echo check:', { messageContent, messageChatId, isEcho });
           if (isEcho) {
-            console.log('🚫 Blocking group message as echo of recently sent message (content-based)');
             return;
           }
 
           // TERTIARY: If this is from current user, try to replace optimistic message
           if (isFromCurrentUser) {
-            console.log('🔄 Replacing optimistic message with server confirmation');
 
             setMessages((previousMessages) => {
               // Find and replace the optimistic message with the same content
@@ -525,14 +381,12 @@ export function ChatProvider({ children }) {
 
                 const newMessages = [...previousMessages];
                 newMessages[optimisticIndex] = serverMessage;
-                console.log('✅ Replaced optimistic message with server confirmation');
                 // Update chat last message
                 updateChatLastMessage(messageChatId, messageContent, serverMessage.timestamp);
                 return newMessages;
               }
 
               // If no optimistic message found, ignore this echo
-              console.log('🚫 No optimistic message found to replace, ignoring echo');
               return previousMessages;
             });
 
@@ -540,18 +394,9 @@ export function ChatProvider({ children }) {
           }
 
           // For messages from other users, add normally
-          console.log('✅ Adding group message from other user to state');
 
           // Check if this message already exists in our state (prevent duplicates)
           setMessages((previousMessages) => {
-            console.log('🔍 Checking for duplicate group message:', {
-              messageContent,
-              messageChatId,
-              senderId,
-              existingMessagesCount: previousMessages.length,
-              existingMessagesForThisChat: previousMessages.filter(m => m.chat_id === messageChatId).length
-            });
-
             // More specific duplicate check: same content, same chat, same sender, within 5 seconds
             const messageExists = previousMessages.some(msg =>
               msg.text === messageContent &&
@@ -560,10 +405,7 @@ export function ChatProvider({ children }) {
               Math.abs(new Date(msg.timestamp) - new Date(messageData.timestamp || Date.now())) < 5000 // Within 5 seconds
             );
 
-            console.log('🔍 Duplicate check result:', { messageExists });
-
             if (messageExists) {
-              console.log('🚫 Group message already exists in state');
               return previousMessages;
             }
 
@@ -581,51 +423,16 @@ export function ChatProvider({ children }) {
               text: messageContent
             }
 
-            console.log('🔍 Created group newMessage object:', newMessage);
-            console.log('🔍 Final group newMessage.text:', newMessage.text);
+
 
             // Update chat last message
             updateChatLastMessage(messageChatId, messageContent, newMessage.timestamp);
             return [...previousMessages, newMessage];
           });
-        } else {
-          console.log('❌ No messageData found in group_message');
         }
       })
 
-      // Handle new_message type as well (in case it's being used)
-      websocketService.onMessage('new_message', (data) => {
-
-        // Handle both formats: data.message and direct data
-        let messageData = data.message || data;
-
-        if (messageData) {
-          const messageContent = messageData.content || messageData.text;
-          const messageChatId = messageData.chat_id;
-          const senderId = messageData.sender_id || messageData.from;
-          const isFromCurrentUser = isSameUser(senderId, currentUser?.id);
-
-          // BLOCK: If this message is from the current user, ignore it completely
-          if (isFromCurrentUser) {
-            return;
-          }
-
-          // Handle message from API docs format
-          const newMessage = {
-            id: Date.now(),
-            from: senderId,
-            text: messageContent,
-            content: messageContent,
-            timestamp: messageData.timestamp || new Date().toISOString(),
-            chat_id: messageChatId,
-            ...messageData,
-            // Ensure text is not overridden by spread operator
-            text: messageContent
-          }
-          setMessages((previousMessages) => [...previousMessages, newMessage])
-          updateChatLastMessage(messageChatId, messageContent, newMessage.timestamp)
-        }
-      })
+      // Intentionally omit 'new_message' handler (server broadcasts 'personal_message' or 'group_message')
       websocketService.onMessage('new_chat_room', (payload) => {
         const room = payload?.chat_room || payload?.chat || payload
         if (!room) return
@@ -638,9 +445,7 @@ export function ChatProvider({ children }) {
         upsertChat(normalizedRoom)
       })
 
-      websocketService.onConnection('connected', () => {
-        console.log('WebSocket connected successfully')
-      })
+      websocketService.onConnection('connected', () => { })
 
       return () => {
         websocketService.disconnect()
@@ -648,71 +453,33 @@ export function ChatProvider({ children }) {
     }
   }, [isAuthenticated, currentUser])
   useEffect(() => {
-    console.log('🔐 ChatContext: Auth state changed', {
-      isAuthenticated,
-      hasCurrentUser: !!currentUser,
-      userId: currentUser?.id,
-      username: currentUser?.username,
-      hasLoadedChats,
-      chatsCount: chats.length
-    })
-
     if (isAuthenticated && currentUser && !hasLoadedChats) {
-      console.log('✅ ChatContext: User authenticated, loading initial chat list')
       setHasLoadedChats(true)
       loadChatList()
     }
   }, [isAuthenticated, currentUser, hasLoadedChats])
 
-  // Reset hasLoadedChats when user changes (different login)
+  // Reset state when user changes (different login)
   useEffect(() => {
-    console.log('🔄 ChatContext: Current user changed, resetting chat loading state')
     setHasLoadedChats(false)
-    setChats([]) // Clear chats when user changes
-    setMessages([]) // Clear messages when user changes
+    setChats([])
+    setMessages([])
+    setRecentSentContent(new Set())
+    setRecentMessages([])
+    setSentMessages(new Set())
+    setCurrentChat(null)
   }, [currentUser?.id])
 
   const loadChatList = async (cursor = null) => {
     if (!isAuthenticated || !currentUser) {
-      console.log('🔍 loadChatList: Not authenticated or no current user')
       return
     }
 
     try {
-      console.log('📡 loadChatList: Starting to load chat list', {
-        cursor,
-        userId: currentUser.id,
-        userIdType: typeof currentUser.id,
-        userIdString: String(currentUser.id),
-        username: currentUser.username,
-        email: currentUser.email
-      })
       setLoading(true)
       const response = await getChatList(cursor)
 
-      console.log('📦 loadChatList: Full API response:', response)
-      console.log('📊 loadChatList: Response received', {
-        chatsCount: response.chats?.length || 0,
-        nextCursor: response.next_cursor,
-        chatTypes: response.chats?.map(c => ({
-          id: c.chat_id || c.id,
-          name: c.name || c.chat_name,
-          type: c.type || c.chat_type,
-          participants: c.participants
-        }))
-      })
-
-      // Log each chat for debugging
-      response.chats?.forEach((chat, index) => {
-        console.log(`💬 Chat ${index + 1}:`, {
-          id: chat.chat_id || chat.id,
-          name: chat.name || chat.chat_name,
-          type: chat.type || chat.chat_type,
-          participants: chat.participants,
-          isGroup: chat.type === 'group' || chat.chat_type === 'group',
-          rawChat: chat
-        })
-      })
+      // Optionally inspect chats here if needed
 
       if (cursor) {
         setChats(prev => [...prev, ...(response.chats || [])])
@@ -738,19 +505,12 @@ export function ChatProvider({ children }) {
 
   const loadChatMessages = async (chatId, cursor = null, limit = 50) => {
     if (!chatId) {
-      console.log('🔍 loadChatMessages: No chatId provided')
       return
     }
 
     try {
-      console.log('🔍 loadChatMessages: Starting to load messages for chat', { chatId, cursor })
       setLoading(true)
       const response = await getMessageHistory(chatId, cursor, limit)
-
-      console.log('🔍 loadChatMessages: Response received', {
-        messagesCount: response.messages?.length || 0,
-        chatId
-      })
 
       const raw = response.messages || response.items || []
       const normalized = raw.map((msg) => ({
@@ -797,7 +557,7 @@ export function ChatProvider({ children }) {
         }
       }))
 
-      console.log('🔍 loadChatMessages: Completed API history load for chat', chatId)
+
 
     } catch (error) {
       console.error('❌ Error loading chat messages:', error)
@@ -876,7 +636,6 @@ export function ChatProvider({ children }) {
       }
 
       // APPROACH 1: Check if chat already exists first
-      console.log('🔍 Checking if chat already exists with user:', userId)
       const existingChat = chats.find(chat => {
         return chat.participants?.includes(String(userId)) ||
           chat.user_id === String(userId) ||
@@ -886,17 +645,10 @@ export function ChatProvider({ children }) {
       })
 
       if (existingChat) {
-        console.log('🔍 Found existing chat, using it:', existingChat)
         return existingChat
       }
 
       // APPROACH 2: Try creating the chat using the existing API function
-      console.log('🔍 No existing chat found, trying to create new one...')
-      console.log('🔍 DEBUG: currentUser object (full):', JSON.stringify(currentUser, null, 2))
-      console.log('🔍 DEBUG: currentUser?.id:', currentUser?.id)
-      console.log('🔍 DEBUG: currentUser?.user_id:', currentUser?.user_id)
-      console.log('🔍 DEBUG: currentUser?._id:', currentUser?._id)
-      console.log('🔍 DEBUG: All currentUser keys:', Object.keys(currentUser || {}))
 
       // Also check localStorage directly
       let localStorageUser = null
@@ -904,7 +656,6 @@ export function ChatProvider({ children }) {
         const stored = localStorage.getItem('chatUser')
         if (stored) {
           localStorageUser = JSON.parse(stored)
-          console.log('🔍 DEBUG: localStorage chatUser:', JSON.stringify(localStorageUser, null, 2))
         }
       } catch (e) {
         console.error('🔍 DEBUG: Error reading localStorage:', e)
@@ -912,17 +663,12 @@ export function ChatProvider({ children }) {
 
       // Get current user ID with fallbacks
       const currentUserId = currentUser?.id || currentUser?.user_id || currentUser?._id || localStorageUser?.id || localStorageUser?.user_id || localStorageUser?._id
-      console.log('🔍 DEBUG: Final currentUserId:', currentUserId)
-      console.log('🔍 DEBUG: Other userId:', userId)
-      console.log('🔍 DEBUG: typeof currentUserId:', typeof currentUserId)
-      console.log('🔍 DEBUG: typeof userId:', typeof userId)
 
       if (!currentUserId) {
         throw new Error('Current user ID is not available. Please log in again.')
       }
 
       const participants = Array.from(new Set([String(currentUserId), String(userId)].filter(Boolean)))
-      console.log('🔍 DEBUG: Participants array:', participants)
       const response = await createPersonalChat(participants)
       const newChat = response?.chat || response?.chat_room || response
       if (newChat) {
@@ -983,28 +729,12 @@ export function ChatProvider({ children }) {
 
   const createGroup = async ({ name, participantIds, adminIds = [] }) => {
     try {
-      console.log('👥 createGroup called with:', { name, participantIds, adminIds, currentUser: currentUser?.id })
-
-      // Show detailed user ID information for debugging
-      console.log('🔍 User ID details:', {
-        currentUserId: currentUser?.id,
-        currentUserIdType: typeof currentUser?.id,
-        currentUserIdString: String(currentUser?.id),
-        selectedParticipantIds: participantIds,
-        selectedParticipantTypes: participantIds?.map(id => typeof id)
-      })
 
       // Ensure creator is included as participant and admin
       const uniqueParticipantIds = Array.from(new Set([currentUser?.id, ...(participantIds || [])].filter(Boolean)))
       const uniqueAdminIds = Array.from(new Set([currentUser?.id, ...(adminIds || [])].filter(Boolean)))
 
-      console.log('📋 createGroup processed participants:', {
-        originalParticipants: participantIds,
-        processedParticipants: uniqueParticipantIds,
-        processedParticipantTypes: uniqueParticipantIds.map(id => typeof id),
-        admins: uniqueAdminIds,
-        participantCount: uniqueParticipantIds.length
-      })
+
 
       if (uniqueParticipantIds.length < 2) {
         throw new Error('Please select at least one participant for the group')
@@ -1045,25 +775,31 @@ export function ChatProvider({ children }) {
   }
 
   const setCurrentChatUser = (chat) => {
-    console.log('🔍 setCurrentChatUser: Setting current chat', {
-      chatId: chat?.chat_id,
-      chatName: chat?.name || chat?.chat_name,
-      hasChatId: !!(chat && chat.chat_id)
-    })
+    // Clear messages for the new current chat immediately to avoid stale render from previous account
+    if (chat?.chat_id) {
+      setMessages(prev => prev.filter(m => m.chat_id !== chat.chat_id))
+    }
 
     setCurrentChat(chat)
     if (chat && chat.chat_id) {
       // Load persisted messages first for instant display
       const persistedMessages = loadPersistedMessages(chat.chat_id)
       if (persistedMessages.length > 0) {
-        console.log(`📂 Loaded ${persistedMessages.length} persisted messages for instant display`)
+        // Normalize persisted messages for ownership correctness
+        const normalizedPersisted = persistedMessages.map(msg => ({
+          ...msg,
+          chat_id: msg.chat_id || chat.chat_id,
+          content: msg.content || msg.text || '',
+          text: msg.content || msg.text || '',
+          from: msg.from || msg.sender_id || msg.user_id || msg.sender
+        }))
+
         setMessages(prev => {
           const others = prev.filter(m => m.chat_id !== chat.chat_id)
-          return [...others, ...persistedMessages]
+          return [...others, ...normalizedPersisted]
         })
       }
 
-      console.log('🔍 setCurrentChatUser: Requesting old messages via WebSocket for chat', chat.chat_id)
       websocketService.loadChat(chat.chat_id)
       // Initialize pagination state for this chat
       setMessagePagination(prev => ({
@@ -1071,14 +807,20 @@ export function ChatProvider({ children }) {
         [chat.chat_id]: { cursor: null, hasMore: true, isLoading: false }
       }))
     } else {
-      console.log('🔍 setCurrentChatUser: No chat_id found, clearing messages')
       setMessages([])
     }
   }
 
   const getMessagesForUser = (chatId) => {
     const filteredMessages = messages.filter(msg => msg.chat_id === chatId)
-    return filteredMessages
+    // Sort ascending by timestamp (older first)
+    return filteredMessages.slice().sort((a, b) => {
+      const at = new Date(a.timestamp || 0).getTime()
+      const bt = new Date(b.timestamp || 0).getTime()
+      if (at !== bt) return at - bt
+      // Stable fallback by id to reduce jitter if timestamps equal
+      return String(a.id).localeCompare(String(b.id))
+    })
   }
 
   const updateUserStatus = (userId, online) => {
@@ -1116,6 +858,8 @@ export function ChatProvider({ children }) {
     updateUserStatus,
     setCurrentChatUser,
     getMessagesForUser,
+    // Helper to check if a senderId belongs to current user (handles different formats)
+    isMessageFromCurrentUser: (senderId) => isSameUser(senderId, currentUser?.id),
     searchUsers,
     createChat,
     createGroup,

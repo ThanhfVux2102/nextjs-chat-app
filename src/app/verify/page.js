@@ -20,17 +20,17 @@ export default function VerifyPage() {
 
   const handleVerify = () => {
     const enteredCode = code.join('')
-    console.log('Verifying:', enteredCode)
+
     // Gọi API verify tại đây
   }
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#444' }}>
       <div style={{ background: 'white', padding: '30px', borderRadius: '20px', width: '350px' }}>
-        
-        <h2 style={{fontWeight: 'bold', color: '#555'}}>Check your email</h2>
-        <p style={{color: '#555'}}>We sent a reset link to <b>contact@dscode...com</b><br />
-        Enter 5 digit code that mentioned in the email</p>
+
+        <h2 style={{ fontWeight: 'bold', color: '#555' }}>Check your email</h2>
+        <p style={{ color: '#555' }}>We sent a reset link to <b>contact@dscode...com</b><br />
+          Enter 5 digit code that mentioned in the email</p>
 
         <div style={{ display: 'flex', gap: '10px', margin: '20px 0' }}>
           {code.map((c, i) => (
@@ -48,7 +48,7 @@ export default function VerifyPage() {
                 fontSize: '20px',
                 borderRadius: '8px',
                 border: '1px solid #ccc',
-                
+
               }}
             />
           ))}
@@ -66,8 +66,8 @@ export default function VerifyPage() {
           Verify Code
         </button>
 
-        <p style={{color: '#555', marginTop: '20px', textAlign: 'center',  }}>
-          Haven’t got the email yet? <a href="#" style={{textDecoration: 'underline'}}>Resend email</a>
+        <p style={{ color: '#555', marginTop: '20px', textAlign: 'center', }}>
+          Haven’t got the email yet? <a href="#" style={{ textDecoration: 'underline' }}>Resend email</a>
         </p>
       </div>
     </div>
