@@ -181,7 +181,7 @@ export async function getChatList(cursor = null) {
     return {
       ...item,
       chat_id: item.chat_id || item.id,
-      name: item.name || item.chat_name || item.username || 'Unknown',
+      name: item.name || item.chat_name || item.username || (isGroup ? 'Group Chat' : 'Unknown User'),
       last_message: item.last_message || item.lastMessage || '',
       type: isGroup ? 'group' : 'personal', // Set the type based on our detection
       chat_type: isGroup ? 'group' : 'personal',

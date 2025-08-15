@@ -90,21 +90,102 @@ export function ChatProvider({ children }) {
     }
   }, [messages, currentUser?.id])
 
-  // Helper: add or update a chat item without creating duplicates
-  const upsertChat = (incomingChat) => {
-    if (!incomingChat) return
-    const incomingId = incomingChat.chat_id || incomingChat.id
-    if (!incomingId) return
-    setChats((previousChats) => {
-      const index = previousChats.findIndex(c => (c.chat_id || c.id) === incomingId)
-      if (index !== -1) {
-        const updated = [...previousChats]
-        updated[index] = { ...previousChats[index], ...incomingChat }
-        return updated
-      }
-      return [incomingChat, ...previousChats]
-    })
+// Chuẩn hóa mảng participant về mảng string, bỏ null/undefined
+const normParticipants = (p) =>
+  Array.isArray(p) ? Array.from(new Set(p.map(String).filter(Boolean))).sort() : [];
+
+// So sánh 2 room là cùng phòng không
+const isSameRoom = (a, b) => {
+  const aId = a.chat_id || a.id;
+  const bId = b.chat_id || b.id;
+  if (aId && bId && String(aId) === String(bId)) return true;
+
+  const pa = normParticipants(a.participants || a.member_ids);
+  const pb = normParticipants(b.participants || b.member_ids);
+  if (pa.length && pb.length && pa.length === pb.length) {
+    // cùng tập participants ⇒ coi là cùng phòng
+    for (let i = 0; i < pa.length; i++) if (pa[i] !== pb[i]) return false;
+    return true;
   }
+  return false;
+};
+
+// tên generic/placeholder (để tránh downgrade)
+const isGenericName = (n = '') => {
+  const s = String(n).trim().toLowerCase();
+  return (
+    !s ||
+    s === 'new chat' ||
+    s === 'group' ||
+    s === 'personal' ||
+    s === 'chat' ||
+    /^chat\b/.test(s) ||
+    /^[a-f0-9]{24}$/i.test(s)
+  );
+};
+
+// Helper để hiển thị tên chat ưu tiên username/email thay vì "Chat with User"
+const displayName = (item) => {
+  const nice = item.other_user_username || item.username || item.other_user_email || item.email;
+  if (nice) return nice;
+  
+  if (item.name && !isGenericName(item.name)) return item.name;
+  
+  return item.other_user_id ? `Chat with ${item.other_user_id}` : `Chat ${item.chat_id || ''}`;
+};
+
+
+const upsertChat = (incomingRaw) => {
+  if (!incomingRaw) return;
+
+  // Chuẩn hóa incoming trước khi merge
+  const incoming = {
+    ...incomingRaw,
+    chat_id: incomingRaw.chat_id || incomingRaw.id,
+    participants: normParticipants(incomingRaw.participants || incomingRaw.member_ids),
+  };
+  const incomingName = incoming.name || incoming.chat_name || incoming.username;
+
+  setChats((prev) => {
+    // Tìm phòng trùng bằng chat_id hoặc participants
+    const idx = prev.findIndex((c) => isSameRoom(c, incoming));
+    if (idx !== -1) {
+      const existing = prev[idx];
+      const existingName = existing.name || existing.chat_name || existing.username;
+
+      const merged = {
+        ...existing,
+        ...incoming,
+        // Không cho tên generic ghi đè tên “đẹp”
+        name: !isGenericName(incomingName) ? incomingName : existingName,
+        // Giữ các field “đối tác” nếu đã có
+        other_user_id: incoming.other_user_id || existing.other_user_id,
+        other_user_username: incoming.other_user_username || existing.other_user_username,
+        other_user_email: incoming.other_user_email || existing.other_user_email,
+        username: incoming.username || existing.username,
+        email: incoming.email || existing.email,
+        avatar: incoming.avatar || existing.avatar,
+        user_id: incoming.user_id || existing.user_id,
+        // luôn giữ participants chuẩn hóa
+        participants: normParticipants(incoming.participants || existing.participants),
+      };
+
+      const next = [...prev];
+      next[idx] = merged;
+      return next;
+    }
+
+    // Không trùng ⇒ thêm mới
+    return [
+      {
+        ...incoming,
+        participants: normParticipants(incoming.participants),
+      },
+      ...prev,
+    ];
+  });
+};
+
 
   const updateChatLastMessage = (chatId, text, timestamp = new Date().toISOString()) => {
     if (!chatId) return
@@ -434,16 +515,44 @@ export function ChatProvider({ children }) {
 
       // Intentionally omit 'new_message' handler (server broadcasts 'personal_message' or 'group_message')
       websocketService.onMessage('new_chat_room', (payload) => {
-        const room = payload?.chat_room || payload?.chat || payload
-        if (!room) return
+        const room = payload?.chat_room || payload?.chat || payload;
+        if (!room) return;
+
+        const me = currentUser?.id || currentUser?.user_id || currentUser?._id;
+
+        // Guess participants if WS didn't send them
+        const guessedParticipants =
+          room.participants ||
+          room.member_ids ||
+          (room.other_user_id && me ? [String(me), String(room.other_user_id)] : []);
+
         const normalizedRoom = {
           ...room,
           chat_id: room.chat_id || room.id,
-          name: room.chat_name || room.name || 'New Chat',
+          participants: normParticipants(guessedParticipants),
+          name: room.chat_name || room.name || room.username,
+          other_user_id: room.other_user_id || undefined,
+          other_user_username: room.other_user_username || room.username,
+          other_user_email: room.other_user_email || room.email,
           last_message: room.last_message || '',
+        };
+
+        // 🚫 Hard filter: skip ghost/placeholder rooms
+        const hasParticipants = normalizedRoom.participants?.length > 0;
+        const hasCounterpart =
+          !!(normalizedRoom.other_user_id ||
+             normalizedRoom.other_user_username ||
+             normalizedRoom.other_user_email);
+        const genericName = isGenericName(normalizedRoom.name);
+        const hasAnyContent = !!normalizedRoom.last_message;
+
+        if (!hasParticipants && !hasCounterpart && genericName && !hasAnyContent) {
+          // No IDs, no participants, generic name → likely a placeholder echo ⇒ ignore
+          return;
         }
-        upsertChat(normalizedRoom)
-      })
+
+        upsertChat(normalizedRoom);
+      });
 
       websocketService.onConnection('connected', () => { })
 
@@ -478,20 +587,28 @@ export function ChatProvider({ children }) {
     try {
       setLoading(true)
       const response = await getChatList(cursor)
-
-      // Optionally inspect chats here if needed
-
-      if (cursor) {
-        setChats(prev => [...prev, ...(response.chats || [])])
-      } else {
-        setChats(response.chats || [])
-      }
+      const items = response.chats || []
+      
+      // normalize tối thiểu để upsert hoạt động chính xác
+      items.forEach((raw) => {
+        const normalized = {
+          ...raw,
+          chat_id: raw.chat_id || raw.id,
+          participants: normParticipants(raw.participants || raw.member_ids),
+          name: raw.chat_name || raw.name || raw.username,
+          other_user_id: raw.other_user_id || undefined,
+          other_user_username: raw.other_user_username || raw.username,
+          other_user_email: raw.other_user_email || raw.email,
+          last_message: raw.last_message || '',
+        }
+        upsertChat(normalized) // dùng cơ chế merge/dedupe
+      })
 
       setNextCursor(response.next_cursor || null)
 
     } catch (error) {
       console.error('❌ Error loading chat list:', error)
-      setChats([])
+      // không setChats ([]) nữa để không xoá state đang ổn
     } finally {
       setLoading(false)
     }
@@ -671,24 +788,39 @@ export function ChatProvider({ children }) {
       const participants = Array.from(new Set([String(currentUserId), String(userId)].filter(Boolean)))
       const response = await createPersonalChat(participants)
       const newChat = response?.chat || response?.chat_room || response
+      console.log('🔍 DEBUG: createChat response:', { response, newChat, userObject })
       if (newChat) {
         const normalizedChat = (typeof newChat === 'string')
           ? {
             chat_id: newChat,
-            name: userObject?.username || userObject?.name || `Chat with ${String(userId)}`,
+            participants,
+            other_user_id: String(userId),
+            other_user_username: userObject?.username || userObject?.name,
+            other_user_email: userObject?.email,
+            avatar: userObject?.avatar,
+            name: userObject?.username || userObject?.name || '',
             last_message: '',
             user_id: userId,
             username: userObject?.username,
-            email: userObject?.email,
-            avatar: userObject?.avatar
+            email: userObject?.email
           }
           : {
             ...newChat,
             chat_id: newChat.chat_id || newChat.id,
-            name: newChat.chat_name || newChat.name || newChat.username || 'New Chat',
+            participants: newChat.participants || newChat.member_ids || participants,
+            other_user_id: newChat.other_user_id || String(userId),
+            other_user_username: userObject?.username || newChat.other_user_username || newChat.username,
+            other_user_email: userObject?.email || newChat.other_user_email || newChat.email,
+            avatar: userObject?.avatar || newChat.avatar,
+            name: newChat.chat_name || newChat.name || (userObject?.username || ''),
             last_message: newChat.last_message || '',
+            user_id: userId,
+            username: userObject?.username,
+            email: userObject?.email
           }
-        setChats(prev => [normalizedChat, ...prev])
+        console.log('🔍 DEBUG: normalizedChat:', normalizedChat)
+        // Use upsertChat to avoid duplicates
+        upsertChat(normalizedChat)
         return normalizedChat
       }
     } catch (error) {
@@ -871,7 +1003,8 @@ export function ChatProvider({ children }) {
     setMessages,
     setUsers,
     setChats,
-    testBackendEndpoints // Add the test function to the context
+    testBackendEndpoints, // Add the test function to the context
+    displayName // Add the displayName helper function
   }
 
   return (
