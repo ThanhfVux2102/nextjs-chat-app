@@ -1,5 +1,5 @@
 'use client'
-import { login } from '@/lib/api'
+import { login, getCurrentUser } from '@/lib/api'
 import React, { useState } from 'react'
 import './login.css'
 import { useRouter } from 'next/navigation'
@@ -17,26 +17,39 @@ const Login = () => {
   const [loading, setLoading] = useState(false)
   const handleLogin = async () => {
     if (!email || !password) {
-    setMessage('Please fill in all fields')
-    return
+      setMessage('Please fill in all fields')
+      return
     }
     setLoading(true)
     setMessage('')
     try {
-      const res = await login(email, password);
-      const userData = {
-        id: res?.user?.id || res?.id || res?.user_id || Date.now(),
-        email: res?.user?.email || res?.email || email,
-        username: res?.user?.username || res?.username || email.split('@')[0],
-        avatar: res?.user?.avatar || res?.avatar || '/avatars/default.jpg',
+      // First, perform the login
+      const loginRes = await login(email, password);
 
+      // After successful login, get current user data from /api/auth/me
+      const currentUserData = await getCurrentUser();
+
+      if (!currentUserData || !currentUserData.user_id) {
+        throw new Error('Failed to get user data from server');
       }
-           
+
+      // Use server-provided user_id and username instead of client-generated fallbacks
+      const userData = {
+        id: currentUserData.user_id,
+        user_id: currentUserData.user_id,
+        username: currentUserData.username,
+        email: email, // Keep email from login form
+        avatar: '/avatars/default.jpg', // Default avatar
+      }
+
+      console.log('🔍 LOGIN DEBUG: Server response from /api/auth/me:', JSON.stringify(currentUserData, null, 2))
+      console.log('🔍 LOGIN DEBUG: Created userData object:', JSON.stringify(userData, null, 2))
+
       authLogin(userData)
 
       setMessage('Login successful!')
 
-      router.replace('/chat') 
+      router.replace('/chat')
     } catch (err) {
       console.error('Login error', err)
       setMessage(err?.message || 'Connection error to server')
@@ -79,15 +92,15 @@ const Login = () => {
 
         <div className="options">
           <label><input type="checkbox" /> Remember me?</label>
-            <Link
-              href="/forget-password"
-              style={{ color: '#15240cff', textDecoration: 'underline', cursor: 'pointer' }}
-            >
-              Forgot Password?
-            </Link>
-            <Link href="/register" style={{ color: '#15240cff', textDecoration: 'underline' }}>
-              Back to Register
-            </Link>
+          <Link
+            href="/forget-password"
+            style={{ color: '#15240cff', textDecoration: 'underline', cursor: 'pointer' }}
+          >
+            Forgot Password?
+          </Link>
+          <Link href="/register" style={{ color: '#15240cff', textDecoration: 'underline' }}>
+            Back to Register
+          </Link>
         </div>
 
         <button className="btn-black" onClick={handleLogin}>Login Now</button>
@@ -95,8 +108,8 @@ const Login = () => {
         {message && <p style={{ color: 'red', marginTop: 10 }}>{message}</p>}
       </div>
       <div className="image-section">
-      <img src="/background.jpg" alt="team" />
-    </div>
+        <img src="/background.jpg" alt="team" />
+      </div>
     </div>
   )
 }

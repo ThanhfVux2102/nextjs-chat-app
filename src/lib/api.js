@@ -47,7 +47,7 @@ export async function login(email, password) {
   try {
     const token = data.token || data.access_token || data.jwt || (data.user && data.user.token);
     if (token) localStorage.setItem('authToken', token);
-  } catch {}
+  } catch { }
 
   return data;
 }
@@ -86,7 +86,7 @@ export async function forgotPassword(email) {
 }
 
 export async function resetPassword(token, newPassword, confirmPassword) {
- const payload = {
+  const payload = {
     new_password: newPassword,
     confirm_password: confirmPassword,
   };
@@ -98,7 +98,7 @@ export async function resetPassword(token, newPassword, confirmPassword) {
     body: JSON.stringify(payload),
   });
 
- 
+
   if (res.status === 404) {
     res = await fetch(`${BASE_URL}/api/auth/reset-password?token=${encodeURIComponent(token)}`, {
       method: 'POST',
@@ -134,12 +134,12 @@ export async function checkSession() {
 
 
 export async function getChatList(cursor = null) {
-  const url = cursor 
+  const url = cursor
     ? `${BASE_URL}/api/chat/me/view?cursor=${encodeURIComponent(cursor)}`
     : `${BASE_URL}/api/chat/me/view`;
-  
+
   console.log('📞 API: getChatList called with URL:', url);
-  
+
   const res = await fetch(url, {
     method: 'GET',
     credentials: 'include',
@@ -154,16 +154,16 @@ export async function getChatList(cursor = null) {
     let errorData = {};
     try {
       errorData = JSON.parse(errorText);
-    } catch {}
+    } catch { }
     throw new Error(errorData.detail || errorData.message || `HTTP ${res.status}: ${res.statusText}`);
   }
 
   const data = await res.json();
   console.log('📄 API: getChatList raw response:', data);
-  
+
   let chatsRaw = Array.isArray(data.chats) ? data.chats : (Array.isArray(data.items) ? data.items : []);
   console.log('📝 API: getChatList chatsRaw:', chatsRaw);
-  
+
   const chats = chatsRaw.map((item) => {
     // Detect group chats using multiple indicators since backend doesn't send type
     const participantCount = Array.isArray(item.participants) ? item.participants.length : 0
@@ -171,14 +171,14 @@ export async function getChatList(cursor = null) {
     const isGroupByName = item.name && !item.username && !item.email // Groups have name but no username/email
     const isGroupByType = item.type === 'group' || item.chat_type === 'group'
     const isGroupByField = item.is_group === true || item.isGroup === true
-    
+
     // More lenient detection: if has custom name (not username) and 2+ participants, likely a group
-    const isGroupByNameAndCount = item.name && !item.username && participantCount >= 2 && 
-                                  item.name !== item.email && // name is not just an email
-                                  item.name.length > 2 // has meaningful name
-    
+    const isGroupByNameAndCount = item.name && !item.username && participantCount >= 2 &&
+      item.name !== item.email && // name is not just an email
+      item.name.length > 2 // has meaningful name
+
     const isGroup = isGroupByType || isGroupByField || isGroupByParticipants || isGroupByNameAndCount
-    
+
     console.log('🔬 Processing chat:', {
       id: item.chat_id || item.id,
       name: item.name || item.chat_name,
@@ -195,7 +195,7 @@ export async function getChatList(cursor = null) {
       hasEmail: !!item.email,
       rawItem: item
     })
-    
+
     return {
       ...item,
       chat_id: item.chat_id || item.id,
@@ -217,7 +217,7 @@ export async function getChatList(cursor = null) {
 
 
 export async function getMessageHistory(chatId = null, cursor = null, limit = 50) {
-  
+
   const possibleEndpoints = [
     `/api/message/history`,
     `/api/messages/history`,
@@ -225,31 +225,31 @@ export async function getMessageHistory(chatId = null, cursor = null, limit = 50
     `/api/messages`,
     `/api/chat/messages`
   ];
-  
+
   let lastError = null;
-  
+
   for (const endpoint of possibleEndpoints) {
     try {
       let url = `${BASE_URL}${endpoint}`;
       const params = new URLSearchParams();
-      
+
       if (chatId && !endpoint.includes('${chatId}')) {
         params.append('chat_id', chatId);
       }
-      
+
       if (cursor) {
         params.append('cursor', cursor);
       }
       if (limit) {
         params.append('limit', String(limit));
       }
-      
+
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
-      
+
       console.log('🔍 API: getMessageHistory trying endpoint:', url);
-      
+
       const res = await fetch(url, {
         method: 'GET',
         credentials: 'include',
@@ -276,7 +276,7 @@ export async function getMessageHistory(chatId = null, cursor = null, limit = 50
       lastError = error;
     }
   }
-  
+
   // If all endpoints failed, throw the last error
   console.error('🔍 API: All message history endpoints failed');
   throw lastError || new Error('Failed to fetch message history - no working endpoint found');
@@ -286,44 +286,46 @@ export async function getMessageHistory(chatId = null, cursor = null, limit = 50
 export async function createPersonalChat(participantIds) {
   console.log('🔍 API: createPersonalChat called with participants:', participantIds)
   const normalized = (participantIds || []).map((id) => String(id)).filter(Boolean)
-  
-  // Get current user ID to filter out from participants
-  let currentUserId = null
-  try {
-    const userStr = localStorage.getItem('chatUser')
-    if (userStr) {
-      const user = JSON.parse(userStr)
-      currentUserId = String(user.id || user._id || user.user_id || '')
-    }
-  } catch (e) {
-    console.error('🔍 API: Error getting current user ID:', e)
+
+  console.log('🔍 DEBUG: Normalized participants:', normalized)
+
+  // Validate that we have exactly 2 participants
+  if (normalized.length !== 2) {
+    throw new Error(`Personal chat requires exactly 2 participants, got ${normalized.length}: [${normalized.join(', ')}]`)
   }
-  
-  // According to API docs: participants should contain only the OTHER user's ID as a single string
-  const otherUserId = normalized.find(id => id !== currentUserId)
-  
-  if (!otherUserId) {
-    throw new Error(`Could not identify the other user ID for personal chat. Current: ${currentUserId}, All: ${normalized.join(', ')}`)
-  }
-  
-  // Check if trying to create chat with yourself
-  if (otherUserId === currentUserId) {
+
+  // Validate that participants are not the same
+  if (normalized[0] === normalized[1]) {
     throw new Error('Cannot create a personal chat with yourself')
   }
-  
-  // Use EXACT API specification
+
+  // Remove any undefined values and ensure both IDs are valid
+  const validParticipants = normalized.filter(id => id && id !== 'undefined' && id !== 'null')
+
+  if (validParticipants.length !== 2) {
+    throw new Error(`Invalid participant IDs: [${normalized.join(', ')}]. Got valid: [${validParticipants.join(', ')}]`)
+  }
+
+  // Include both user IDs in participants as requested by user
   const payload = {
     chat_type: 'personal',
-    participants: [otherUserId]  // Single string in array as per API docs
+    participants: validParticipants
   }
-  
+
   console.log('🔍 API: POST /api/chat/create/personal with exact API spec:', payload)
+
+  // Log the request body that will be sent to the server
+  const requestBody = JSON.stringify(payload)
+  console.log('📤 CLIENT REQUEST BODY to POST /api/chat/create/personal:')
+  console.log('   Raw JSON string:', requestBody)
+  console.log('   Parsed object:', JSON.parse(requestBody))
+  console.log('   Content-Type: application/json')
 
   const res = await fetch(`${BASE_URL}/api/chat/create/personal`, {
     method: 'POST',
     headers: defaultHeaders({ 'Content-Type': 'application/json' }),
     credentials: 'include',
-    body: JSON.stringify(payload),
+    body: requestBody,
   })
 
   console.log('🔍 API: Response status:', res.status)
@@ -337,7 +339,7 @@ export async function createPersonalChat(participantIds) {
 
   const errorText = await res.text()
   let errorData = {}
-  try { errorData = JSON.parse(errorText) } catch {}
+  try { errorData = JSON.parse(errorText) } catch { }
   const code = res.status
   let msg = errorData.detail || errorData.message || errorText || `HTTP ${code}`
   if (Array.isArray(errorData?.detail)) {
@@ -377,7 +379,7 @@ export async function createGroupChat(participantIds, name, adminIds = []) {
     const errorText = await res.text()
     console.error('❌ API: createGroupChat failed with error text:', errorText)
     let errorData = {}
-    try { errorData = JSON.parse(errorText) } catch {}
+    try { errorData = JSON.parse(errorText) } catch { }
 
     // Format fastapi-style validation errors for readability
     let message = errorData.message || errorData.detail || ''
@@ -440,7 +442,7 @@ export async function deleteChat(chatId) {
 
 export async function getCurrentUser() {
   console.log('🔍 API: Getting current user from /api/auth/me')
-  
+
   const res = await fetch(`${BASE_URL}/api/auth/me`, {
     method: 'GET',
     credentials: 'include',
@@ -456,7 +458,7 @@ export async function getCurrentUser() {
     let errorData = {};
     try {
       errorData = JSON.parse(errorText);
-    } catch {}
+    } catch { }
     throw new Error(errorData.detail || errorData.message || 'Failed to get current user');
   }
 
@@ -493,18 +495,18 @@ export async function searchUsers(query) {
       })
 
       console.log(`🔍 API: ${c.path} response status:`, res.status, res.statusText)
-      
+
       if (!res.ok) {
         const errorText = await res.text()
         console.log(`🔍 API: ${c.path} error response:`, errorText)
-        
+
         // If any endpoint returns 401, it means authentication failed
         if (res.status === 401) {
           const authError = new Error('Authentication expired. Please log in again.')
           authError.status = 401
           throw authError
         }
-        
+
         lastError = new Error(`${c.path} -> ${res.status} ${res.statusText}: ${errorText}`)
         continue
       }
@@ -547,7 +549,7 @@ export async function searchUsers(query) {
 // Test function to check backend connectivity and available endpoints
 export async function testBackendEndpoints() {
   console.log('🔍 API: Testing backend connectivity...')
-  
+
   const testEndpoints = [
     '/api/auth/me',
     '/api/chat/me/view',
@@ -556,28 +558,28 @@ export async function testBackendEndpoints() {
     '/api/messages',
     '/api/chat/messages'
   ];
-  
+
   const results = {};
-  
+
   for (const endpoint of testEndpoints) {
     try {
       const url = `${BASE_URL}${endpoint}`;
       console.log('🔍 API: Testing endpoint:', url);
-      
+
       const res = await fetch(url, {
         method: 'GET',
         credentials: 'include',
         headers: defaultHeaders(),
       });
-      
+
       results[endpoint] = {
         status: res.status,
         ok: res.ok,
         statusText: res.statusText
       };
-      
+
       console.log('🔍 API: Endpoint result:', endpoint, results[endpoint]);
-      
+
     } catch (error) {
       results[endpoint] = {
         error: error.message,
@@ -586,7 +588,7 @@ export async function testBackendEndpoints() {
       console.log('🔍 API: Endpoint error:', endpoint, error.message);
     }
   }
-  
+
   console.log('🔍 API: All endpoint test results:', results);
   return results;
 }

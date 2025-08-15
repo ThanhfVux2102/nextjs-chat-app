@@ -33,7 +33,7 @@ export function AuthProvider({ children }) {
           setLoading(false)
           return true
         }
-      } catch {}
+      } catch { }
       return false
     }
 
@@ -41,12 +41,16 @@ export function AuthProvider({ children }) {
       try {
         // Prefer a fresh user object from the backend if cookie/session exists
         const currentUserData = await getCurrentUser()
-        if (!cancelled && currentUserData && currentUserData.user) {
-          setUser(currentUserData.user)
-          setIsAuthenticated(true)
-          localStorage.setItem('chatUser', JSON.stringify(currentUserData.user))
-          if (!cancelled) setLoading(false)
-          return
+        if (!cancelled && currentUserData) {
+          // Handle both nested (legacy) and flat response structures
+          const userData = currentUserData.user || (currentUserData.user_id ? currentUserData : null)
+          if (userData) {
+            setUser(userData)
+            setIsAuthenticated(true)
+            localStorage.setItem('chatUser', JSON.stringify(userData))
+            if (!cancelled) setLoading(false)
+            return
+          }
         }
       } catch (err) {
         console.warn('getCurrentUser failed, falling back to checkSession:', err?.message)
@@ -92,7 +96,7 @@ export function AuthProvider({ children }) {
             setUser(null)
             setIsAuthenticated(false)
           }
-        } catch {}
+        } catch { }
       }
     }
     window.addEventListener('storage', onStorage)
@@ -111,18 +115,22 @@ export function AuthProvider({ children }) {
     // Immediately refresh from backend to get canonical id (e.g., ObjectId)
     try {
       const currentUserData = await getCurrentUser()
-      if (currentUserData && currentUserData.user) {
-        setUser(currentUserData.user)
-        localStorage.setItem('chatUser', JSON.stringify(currentUserData.user))
+      if (currentUserData) {
+        // Handle both nested (legacy) and flat response structures
+        const refreshedUserData = currentUserData.user || (currentUserData.user_id ? currentUserData : null)
+        if (refreshedUserData) {
+          setUser(refreshedUserData)
+          localStorage.setItem('chatUser', JSON.stringify(refreshedUserData))
+        }
       }
-    } catch {}
+    } catch { }
   }
 
   const logout = () => {
     setUser(null)
     setIsAuthenticated(false)
     localStorage.removeItem('chatUser')
-    
+
     // Clear all chat-related localStorage data
     try {
       const keys = Object.keys(localStorage)
@@ -146,10 +154,14 @@ export function AuthProvider({ children }) {
   const refreshUserData = async () => {
     try {
       const currentUserData = await getCurrentUser()
-      if (currentUserData && currentUserData.user) {
-        setUser(currentUserData.user)
-        localStorage.setItem('chatUser', JSON.stringify(currentUserData.user))
-        return currentUserData.user
+      if (currentUserData) {
+        // Handle both nested (legacy) and flat response structures
+        const userData = currentUserData.user || (currentUserData.user_id ? currentUserData : null)
+        if (userData) {
+          setUser(userData)
+          localStorage.setItem('chatUser', JSON.stringify(userData))
+          return userData
+        }
       }
     } catch (error) {
       console.error('Error refreshing user data:', error)
