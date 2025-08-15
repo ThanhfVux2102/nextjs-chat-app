@@ -103,16 +103,38 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const login = (userData) => {
+  const login = async (userData) => {
+    // Optimistically set
     setUser(userData)
     setIsAuthenticated(true)
     localStorage.setItem('chatUser', JSON.stringify(userData))
+    // Immediately refresh from backend to get canonical id (e.g., ObjectId)
+    try {
+      const currentUserData = await getCurrentUser()
+      if (currentUserData && currentUserData.user) {
+        setUser(currentUserData.user)
+        localStorage.setItem('chatUser', JSON.stringify(currentUserData.user))
+      }
+    } catch {}
   }
 
   const logout = () => {
     setUser(null)
     setIsAuthenticated(false)
     localStorage.removeItem('chatUser')
+    
+    // Clear all chat-related localStorage data
+    try {
+      const keys = Object.keys(localStorage)
+      keys.forEach(key => {
+        if (key.startsWith('chatMessages_')) {
+          localStorage.removeItem(key)
+        }
+      })
+      console.log('🗑️ Cleared all persisted chat messages on logout')
+    } catch (error) {
+      console.warn('Failed to clear persisted messages on logout:', error)
+    }
   }
 
   const updateUser = (updates) => {

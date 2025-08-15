@@ -29,46 +29,70 @@ export function ChatProvider({ children }) {
   const [sentMessages, setSentMessages] = useState(new Set()) // Track messages we sent
   const [recentSentContent, setRecentSentContent] = useState(new Set()) // Track recent sent content
   const [recentMessages, setRecentMessages] = useState([]) // Track recent messages for echo detection
+
+  // Message persistence functions
+  const getMessagesStorageKey = (chatId) => `chatMessages_${currentUser?.id}_${chatId}`
   
-  // Local storage keys per user
-  const getChatsStorageKey = () => currentUser ? `fechat_chats_${currentUser.id}` : null
-  const getMessagesStorageKey = (chatId) => currentUser && chatId ? `fechat_msgs_${currentUser.id}_${chatId}` : null
-
-  const persistMessagesForChat = (chatId, allMessages) => {
+  const persistMessagesForChat = (chatId, messages) => {
+    if (!chatId || !currentUser?.id) return
     try {
+      const chatMessages = messages.filter(m => m.chat_id === chatId)
+      // Keep only last 200 messages per chat to avoid storage limits
+      const recentMessages = chatMessages.slice(-200)
       const key = getMessagesStorageKey(chatId)
-      if (!key) return
-      const perChat = (allMessages || []).filter(m => m.chat_id === chatId)
-      // Dedupe and keep last 200
-      const seen = new Set()
-      const deduped = []
-      perChat.forEach(m => {
-        const k = `${m.id}-${m.timestamp}-${m.text}`
-        if (!seen.has(k)) {
-          seen.add(k)
-          deduped.push(m)
-        }
-      })
-      const last200 = deduped.slice(-200)
-      localStorage.setItem(key, JSON.stringify(last200))
-    } catch (e) {
-      console.warn('persistMessagesForChat failed:', e?.message)
+      localStorage.setItem(key, JSON.stringify(recentMessages))
+      console.log(`💾 Persisted ${recentMessages.length} messages for chat ${chatId}`)
+    } catch (error) {
+      console.warn('Failed to persist messages:', error)
     }
   }
-
+  
   const loadPersistedMessages = (chatId) => {
+    if (!chatId || !currentUser?.id) return []
     try {
       const key = getMessagesStorageKey(chatId)
-      if (!key) return []
-      const raw = localStorage.getItem(key)
-      if (!raw) return []
-      const parsed = JSON.parse(raw)
-      if (!Array.isArray(parsed)) return []
-      return parsed
-    } catch {
-      return []
+      const stored = localStorage.getItem(key)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        console.log(`📂 Loaded ${parsed.length} persisted messages for chat ${chatId}`)
+        return Array.isArray(parsed) ? parsed : []
+      }
+    } catch (error) {
+      console.warn('Failed to load persisted messages:', error)
+    }
+    return []
+  }
+  
+  const clearPersistedMessages = (chatId) => {
+    if (!chatId || !currentUser?.id) return
+    try {
+      const key = getMessagesStorageKey(chatId)
+      localStorage.removeItem(key)
+      console.log(`🗑️ Cleared persisted messages for chat ${chatId}`)
+    } catch (error) {
+      console.warn('Failed to clear persisted messages:', error)
     }
   }
+
+  // Persist messages whenever they change
+  useEffect(() => {
+    if (messages.length > 0 && currentUser?.id) {
+      // Group messages by chat_id and persist each chat's messages
+      const messagesByChat = messages.reduce((acc, msg) => {
+        if (msg.chat_id) {
+          if (!acc[msg.chat_id]) acc[msg.chat_id] = []
+          acc[msg.chat_id].push(msg)
+        }
+        return acc
+      }, {})
+      
+      // Persist messages for each chat
+      Object.entries(messagesByChat).forEach(([chatId, chatMessages]) => {
+        persistMessagesForChat(chatId, chatMessages)
+      })
+    }
+  }, [messages, currentUser?.id])
+
   // Helper: add or update a chat item without creating duplicates
   const upsertChat = (incomingChat) => {
     if (!incomingChat) return
@@ -257,21 +281,7 @@ export function ChatProvider({ children }) {
         setMessages((previousMessages) => {
           if (chatIdFromPayload) {
             const others = previousMessages.filter(m => m.chat_id !== chatIdFromPayload)
-            // Update last message for that chat
-            if (normalized.length > 0) {
-              const last = normalized[normalized.length - 1]
-              updateChatLastMessage(chatIdFromPayload, last.text, last.timestamp)
-            }
-            const updated = [...others, ...normalized]
-            // Persist the normalized list for this chat
-            try {
-              const perChat = updated.filter(m => m.chat_id === chatIdFromPayload)
-              const key = getMessagesStorageKey(chatIdFromPayload)
-              if (key) {
-                localStorage.setItem(key, JSON.stringify(perChat.slice(-200)))
-              }
-            } catch {}
-            return updated
+            return [...others, ...normalized]
           }
 
           // If we don't know chat_id from payload, just append but avoid duplicates
@@ -379,8 +389,6 @@ export function ChatProvider({ children }) {
                 console.log('✅ Replaced optimistic personal message with server confirmation');
                 // Update chat last message
                 updateChatLastMessage(messageChatId, messageContent, serverMessage.timestamp);
-                // Persist
-                persistMessagesForChat(messageChatId, newMessages)
                 return newMessages;
               }
               
@@ -396,7 +404,7 @@ export function ChatProvider({ children }) {
           console.log('✅ Adding personal message from other user to state');
           
           // Check if this message already exists in our state (prevent duplicates)
-            setMessages((previousMessages) => {
+          setMessages((previousMessages) => {
             // More specific duplicate check: same content, same chat, same sender, within 5 seconds
             const messageExists = previousMessages.some(msg => 
               msg.text === messageContent && 
@@ -428,9 +436,7 @@ export function ChatProvider({ children }) {
             
             // Update chat last message
             updateChatLastMessage(messageChatId, messageContent, newMessage.timestamp);
-              const updated = [...previousMessages, newMessage]
-              persistMessagesForChat(messageChatId, updated)
-              return updated
+            return [...previousMessages, newMessage];
           });
         } else {
           console.log('❌ No messageData found in personal_message');
@@ -465,18 +471,26 @@ export function ChatProvider({ children }) {
             messageContent,
             messageChatId,
             senderId,
+            senderIdType: typeof senderId,
             currentUserId: currentUser?.id,
-            isFromCurrentUser
+            currentUserIdType: typeof currentUser?.id,
+            isFromCurrentUser,
+            recentSentContentSize: recentSentContent.size,
+            recentMessagesLength: recentMessages.length
           });
           
           // PRIMARY: Check if this content was recently sent by current user (most reliable)
-          if (isRecentlySentContent(messageContent, messageChatId)) {
+          const isRecentlySent = isRecentlySentContent(messageContent, messageChatId);
+          console.log('🔍 Recently sent check:', { messageContent, messageChatId, isRecentlySent });
+          if (isRecentlySent) {
             console.log('🚫 Blocking group message with recently sent content');
             return;
           }
           
           // SECONDARY: Check if this is an echo of a recently sent message (content-based)
-          if (isEchoOfRecentMessage(messageContent, messageChatId)) {
+          const isEcho = isEchoOfRecentMessage(messageContent, messageChatId);
+          console.log('🔍 Echo check:', { messageContent, messageChatId, isEcho });
+          if (isEcho) {
             console.log('🚫 Blocking group message as echo of recently sent message (content-based)');
             return;
           }
@@ -514,7 +528,6 @@ export function ChatProvider({ children }) {
                 console.log('✅ Replaced optimistic message with server confirmation');
                 // Update chat last message
                 updateChatLastMessage(messageChatId, messageContent, serverMessage.timestamp);
-                persistMessagesForChat(messageChatId, newMessages)
                 return newMessages;
               }
               
@@ -527,10 +540,18 @@ export function ChatProvider({ children }) {
           }
           
           // For messages from other users, add normally
-          console.log('✅ Adding message from other user to state');
+          console.log('✅ Adding group message from other user to state');
           
           // Check if this message already exists in our state (prevent duplicates)
           setMessages((previousMessages) => {
+            console.log('🔍 Checking for duplicate group message:', {
+              messageContent,
+              messageChatId,
+              senderId,
+              existingMessagesCount: previousMessages.length,
+              existingMessagesForThisChat: previousMessages.filter(m => m.chat_id === messageChatId).length
+            });
+            
             // More specific duplicate check: same content, same chat, same sender, within 5 seconds
             const messageExists = previousMessages.some(msg => 
               msg.text === messageContent && 
@@ -538,6 +559,8 @@ export function ChatProvider({ children }) {
               isSameUser(msg.from, senderId) &&
               Math.abs(new Date(msg.timestamp) - new Date(messageData.timestamp || Date.now())) < 5000 // Within 5 seconds
             );
+            
+            console.log('🔍 Duplicate check result:', { messageExists });
             
             if (messageExists) {
               console.log('🚫 Group message already exists in state');
@@ -563,9 +586,7 @@ export function ChatProvider({ children }) {
             
             // Update chat last message
             updateChatLastMessage(messageChatId, messageContent, newMessage.timestamp);
-            const updated = [...previousMessages, newMessage]
-            persistMessagesForChat(messageChatId, updated)
-            return updated
+            return [...previousMessages, newMessage];
           });
         } else {
           console.log('❌ No messageData found in group_message');
@@ -601,11 +622,7 @@ export function ChatProvider({ children }) {
             // Ensure text is not overridden by spread operator
             text: messageContent
           }
-          setMessages((previousMessages) => {
-            const updated = [...previousMessages, newMessage]
-            persistMessagesForChat(messageChatId, updated)
-            return updated
-          })
+          setMessages((previousMessages) => [...previousMessages, newMessage])
           updateChatLastMessage(messageChatId, messageContent, newMessage.timestamp)
         }
       })
@@ -631,15 +648,29 @@ export function ChatProvider({ children }) {
     }
   }, [isAuthenticated, currentUser])
   useEffect(() => {
+    console.log('🔐 ChatContext: Auth state changed', {
+      isAuthenticated,
+      hasCurrentUser: !!currentUser,
+      userId: currentUser?.id,
+      username: currentUser?.username,
+      hasLoadedChats,
+      chatsCount: chats.length
+    })
+    
     if (isAuthenticated && currentUser && !hasLoadedChats) {
-      console.log('🔍 ChatContext: User authenticated, loading initial chat list', {
-        userId: currentUser.id,
-        username: currentUser.username
-      })
+      console.log('✅ ChatContext: User authenticated, loading initial chat list')
       setHasLoadedChats(true)
       loadChatList()
     }
   }, [isAuthenticated, currentUser, hasLoadedChats])
+  
+  // Reset hasLoadedChats when user changes (different login)
+  useEffect(() => {
+    console.log('🔄 ChatContext: Current user changed, resetting chat loading state')
+    setHasLoadedChats(false)
+    setChats([]) // Clear chats when user changes
+    setMessages([]) // Clear messages when user changes
+  }, [currentUser?.id])
 
   const loadChatList = async (cursor = null) => {
     if (!isAuthenticated || !currentUser) {
@@ -648,37 +679,46 @@ export function ChatProvider({ children }) {
     }
 
     try {
-      console.log('🔍 loadChatList: Starting to load chat list', { cursor, userId: currentUser.id })
+      console.log('📡 loadChatList: Starting to load chat list', { 
+        cursor, 
+        userId: currentUser.id,
+        userIdType: typeof currentUser.id,
+        userIdString: String(currentUser.id),
+        username: currentUser.username,
+        email: currentUser.email 
+      })
       setLoading(true)
       const response = await getChatList(cursor)
       
-      console.log('🔍 loadChatList: Response received', { 
+      console.log('📦 loadChatList: Full API response:', response)
+      console.log('📊 loadChatList: Response received', { 
         chatsCount: response.chats?.length || 0, 
-        nextCursor: response.next_cursor 
+        nextCursor: response.next_cursor,
+        chatTypes: response.chats?.map(c => ({ 
+          id: c.chat_id || c.id, 
+          name: c.name || c.chat_name, 
+          type: c.type || c.chat_type,
+          participants: c.participants 
+        }))
       })
       
-      setChats(prev => {
-        const existing = Array.isArray(prev) ? prev : []
-        const incoming = response.chats || []
-        const idOf = (c) => c.chat_id || c.id
-        const map = new Map()
-        existing.forEach(c => map.set(idOf(c), c))
-        incoming.forEach(item => {
-          const id = idOf(item)
-          const match = map.get(id)
-          if (match) {
-            map.set(id, {
-              ...match,
-              ...item,
-              last_message: item.last_message || match.last_message || '',
-              last_message_time: item.last_message_time || match.last_message_time || item.last_message_time
-            })
-          } else {
-            map.set(id, item)
-          }
+      // Log each chat for debugging
+      response.chats?.forEach((chat, index) => {
+        console.log(`💬 Chat ${index + 1}:`, {
+          id: chat.chat_id || chat.id,
+          name: chat.name || chat.chat_name,
+          type: chat.type || chat.chat_type,
+          participants: chat.participants,
+          isGroup: chat.type === 'group' || chat.chat_type === 'group',
+          rawChat: chat
         })
-        return Array.from(map.values())
       })
+      
+      if (cursor) {
+        setChats(prev => [...prev, ...(response.chats || [])])
+      } else {
+        setChats(response.chats || [])
+      }
       
       setNextCursor(response.next_cursor || null)
       
@@ -737,16 +777,12 @@ export function ChatProvider({ children }) {
             seen.add(key)
             return true
           })
-          const updated = [...others, ...deduped]
-          persistMessagesForChat(chatId, updated)
-          return updated
+          return [...others, ...deduped]
         })
       } else {
         setMessages(prev => {
           const others = prev.filter(m => m.chat_id !== chatId)
-          const updated = [...others, ...normalized]
-          persistMessagesForChat(chatId, updated)
-          return updated
+          return [...others, ...normalized]
         })
       }
 
@@ -812,20 +848,7 @@ export function ChatProvider({ children }) {
     }
     
     // Add message to local state immediately (optimistic update)
-    setMessages(prev => {
-      const updated = [...prev, newMessage]
-      // Persist optimistic immediately
-      try {
-        const key = getMessagesStorageKey(message.chat_id)
-        if (key) {
-          const perChat = updated.filter(m => m.chat_id === message.chat_id)
-          localStorage.setItem(key, JSON.stringify(perChat.slice(-200)))
-        }
-      } catch {}
-      return updated
-    });
-    // Update sidebar last message immediately
-    updateChatLastMessage(message.chat_id, message.text, newMessage.timestamp)
+    setMessages(prev => [...prev, newMessage]);
     
     // Track this content as recently sent to prevent echo
     addToRecentSent(message.text, message.chat_id);
@@ -839,7 +862,6 @@ export function ChatProvider({ children }) {
     if (currentChat && currentChat.chat_id) {
       websocketService.sendNewMessage(
         currentChat.chat_id,
-        message.from,
         message.text
       )
     } else {
@@ -849,15 +871,47 @@ export function ChatProvider({ children }) {
 
   const createChat = async (userId, userObject = null) => {
     try {
-      const response = await createPersonalChat(userId)
-      const newChat = response.chat || response.chat_room || response
+      if (!userId) {
+        throw new Error('Missing user id')
+      }
+      
+      // APPROACH 1: Check if chat already exists first
+      console.log('🔍 Checking if chat already exists with user:', userId)
+      const existingChat = chats.find(chat => {
+        return chat.participants?.includes(String(userId)) || 
+               chat.user_id === String(userId) || 
+               chat.other_user_id === String(userId) ||
+               (chat.username && userObject?.username && chat.username === userObject.username) ||
+               (chat.name && userObject?.username && chat.name.includes(userObject.username))
+      })
+      
+      if (existingChat) {
+        console.log('🔍 Found existing chat, using it:', existingChat)
+        return existingChat
+      }
+      
+      // APPROACH 2: Try creating the chat using the existing API function
+      console.log('🔍 No existing chat found, trying to create new one...')
+      const participants = Array.from(new Set([String(currentUser?.id), String(userId)].filter(Boolean)))
+      const response = await createPersonalChat(participants)
+      const newChat = response?.chat || response?.chat_room || response
       if (newChat) {
-        const normalizedChat = {
-          ...newChat,
-          chat_id: newChat.chat_id || newChat.id,
-          name: newChat.chat_name || newChat.name || newChat.username || 'New Chat',
-          last_message: newChat.last_message || '',
-        }
+        const normalizedChat = (typeof newChat === 'string')
+          ? {
+              chat_id: newChat,
+              name: userObject?.username || userObject?.name || `Chat with ${String(userId)}`,
+              last_message: '',
+              user_id: userId,
+              username: userObject?.username,
+              email: userObject?.email,
+              avatar: userObject?.avatar
+            }
+          : {
+              ...newChat,
+              chat_id: newChat.chat_id || newChat.id,
+              name: newChat.chat_name || newChat.name || newChat.username || 'New Chat',
+              last_message: newChat.last_message || '',
+            }
         setChats(prev => [normalizedChat, ...prev])
         return normalizedChat
       }
@@ -891,15 +945,36 @@ export function ChatProvider({ children }) {
         }
       }
       
+      // Surface error to user (single source of alert)
+      alert(error.message || 'Invalid data input')
       throw error
     }
   }
 
   const createGroup = async ({ name, participantIds, adminIds = [] }) => {
     try {
+      console.log('👥 createGroup called with:', { name, participantIds, adminIds, currentUser: currentUser?.id })
+      
+      // Show detailed user ID information for debugging
+      console.log('🔍 User ID details:', {
+        currentUserId: currentUser?.id,
+        currentUserIdType: typeof currentUser?.id,
+        currentUserIdString: String(currentUser?.id),
+        selectedParticipantIds: participantIds,
+        selectedParticipantTypes: participantIds?.map(id => typeof id)
+      })
+      
       // Ensure creator is included as participant and admin
       const uniqueParticipantIds = Array.from(new Set([currentUser?.id, ...(participantIds || [])].filter(Boolean)))
       const uniqueAdminIds = Array.from(new Set([currentUser?.id, ...(adminIds || [])].filter(Boolean)))
+
+      console.log('📋 createGroup processed participants:', { 
+        originalParticipants: participantIds,
+        processedParticipants: uniqueParticipantIds,
+        processedParticipantTypes: uniqueParticipantIds.map(id => typeof id),
+        admins: uniqueAdminIds,
+        participantCount: uniqueParticipantIds.length
+      })
 
       if (uniqueParticipantIds.length < 2) {
         throw new Error('Please select at least one participant for the group')
@@ -948,15 +1023,17 @@ export function ChatProvider({ children }) {
     
     setCurrentChat(chat)
     if (chat && chat.chat_id) {
-      console.log('🔍 setCurrentChatUser: Requesting old messages via WebSocket for chat', chat.chat_id)
-      // Load from local cache immediately for instant history
-      const cached = loadPersistedMessages(chat.chat_id)
-      if (cached.length > 0) {
+      // Load persisted messages first for instant display
+      const persistedMessages = loadPersistedMessages(chat.chat_id)
+      if (persistedMessages.length > 0) {
+        console.log(`📂 Loaded ${persistedMessages.length} persisted messages for instant display`)
         setMessages(prev => {
           const others = prev.filter(m => m.chat_id !== chat.chat_id)
-          return [...others, ...cached]
+          return [...others, ...persistedMessages]
         })
       }
+      
+      console.log('🔍 setCurrentChatUser: Requesting old messages via WebSocket for chat', chat.chat_id)
       websocketService.loadChat(chat.chat_id)
       // Initialize pagination state for this chat
       setMessagePagination(prev => ({

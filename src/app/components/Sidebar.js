@@ -84,6 +84,15 @@ export default function Sidebar() {
         console.log('🔍 Search results set, showUserSearch set to true')
       } catch (err) {
         console.error('Error searching users:', err)
+        
+        // Check if it's an authentication error
+        if (err.status === 401 || err.message?.includes('Authentication expired')) {
+          alert('Your session has expired. Please log in again.')
+          logout()
+          router.push('/login')
+          return
+        }
+        
         setSearchResults([])
         setChatSearchResults([])
       } finally {
@@ -129,6 +138,15 @@ export default function Sidebar() {
         setModalSearchResults(users)
       } catch (err) {
         console.error('Error searching users in modal:', err)
+        
+        // Check if it's an authentication error
+        if (err.status === 401 || err.message?.includes('Authentication expired')) {
+          alert('Your session has expired. Please log in again.')
+          logout()
+          router.push('/login')
+          return
+        }
+        
         setModalSearchResults([])
       } finally {
         setModalSearching(false)
@@ -166,11 +184,7 @@ export default function Sidebar() {
         message: error.message,
         stack: error.stack
       })
-      
-      // Don't show alert for chat already exists - it's handled gracefully
-      if (error.message !== 'CHAT_ALREADY_EXISTS') {
-        alert('Failed to create chat')
-      }
+      // UI alert handled inside ChatContext.createChat; avoid duplicate popups here
     }
   }
 

@@ -25,6 +25,7 @@ class WebSocketService {
     console.log(`🔌 [User: ${this.currentUserId}] Attempting WebSocket connection to:`, wsUrl);
     
     try {
+      // Cookie-based auth: just open the WS URL; browser will include cookies for this domain
       this.ws = new WebSocket(wsUrl);
       
       this.ws.onopen = () => {
@@ -101,12 +102,11 @@ class WebSocketService {
   }
 
   // Send new message
-  sendNewMessage(chatId, senderId, content) {
-    console.log('📤 Sending new message:', { chatId, senderId, content });
+  sendNewMessage(chatId, content) {
+    console.log('📤 Sending new message:', { chatId, content });
     this.sendMessage('new_message', {
       chat_id: chatId,
       data: {
-        sender_id: senderId,
         content: content
       }
     });
@@ -188,11 +188,11 @@ const websocketService = {
       }
     });
   },
-  sendNewMessage: (chatId, senderId, content) => {
+  sendNewMessage: (chatId, content) => {
     // Send to all instances (for testing)
     websocketInstances.forEach((instance, userId) => {
       if (instance.isConnected) {
-        instance.sendNewMessage(chatId, senderId, content);
+        instance.sendNewMessage(chatId, content);
       }
     });
   },
