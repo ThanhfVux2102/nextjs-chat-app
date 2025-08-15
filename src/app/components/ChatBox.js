@@ -6,7 +6,7 @@ import MessageInput from './MessageInput'
 import MessageBubble from './MessageBubble'
 import { useEffect, useRef, useCallback } from 'react'
 
-export default function ChatBox({ toggleRightPanel, isRightPanelOpen }) {
+export default function ChatBox({ toggleRightPanel, isRightPanelOpen, isMobile }) {
   const { currentChat, getMessagesForUser, addMessage, loading, loadMoreMessages, isMessageFromCurrentUser } = useChat()
   const { user: currentUser } = useAuth()
   const messagesEndRef = useRef(null)
@@ -63,42 +63,14 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen }) {
         color: '#666',
         position: 'relative'
       }}>
-        <div style={{ fontSize: '24px', marginBottom: '10px' }}>
+        <div style={{ fontSize: 'clamp(18px, 4vw, 24px)', marginBottom: '10px', textAlign: 'center' }}>
           👋 Welcome to F.E Chat!
         </div>
-        <div style={{ fontSize: '16px', textAlign: 'center' }}>
+        <div style={{ fontSize: 'clamp(14px, 3vw, 16px)', textAlign: 'center', padding: '0 20px' }}>
           Select a chat from the sidebar to start messaging
         </div>
 
-        {/* Toggle Right Panel Button - only show when panel is closed */}
-        {!isRightPanelOpen && (
-          <button
-            onClick={toggleRightPanel}
-            style={{
-              position: 'absolute',
-              top: '20px',
-              right: '20px',
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              border: 'none',
-              backgroundColor: '#f0f0f0',
-              color: '#333',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 16,
-              fontWeight: 'bold',
-              transition: 'background-color 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-            title="Show details"
-          >
-            i
-          </button>
-        )}
+
       </div>
     )
   }
@@ -107,28 +79,28 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Chat Header */}
       <div style={{
-        padding: '15px 20px',
+        padding: 'clamp(10px, 2.5vw, 15px) clamp(15px, 3vw, 20px)',
         borderBottom: '1px solid #eee',
         backgroundColor: '#f8f9fa',
         display: 'flex',
         alignItems: 'center',
-        gap: '12px'
+        gap: 'clamp(8px, 2vw, 12px)'
       }}>
         <img
           src={currentChat.avatar || '/default-avatar.svg'}
           style={{
-            width: 40,
-            height: 40,
+            width: 'clamp(32px, 7vw, 40px)',
+            height: 'clamp(32px, 7vw, 40px)',
             borderRadius: '50%',
             objectFit: 'cover'
           }}
           alt={currentChat.name || currentChat.username}
         />
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 'bold', fontSize: '16px' }}>
+          <div style={{ fontWeight: 'bold', fontSize: 'clamp(14px, 3.5vw, 16px)' }}>
             {currentChat.name || currentChat.username}
           </div>
-          <div style={{ fontSize: '12px', color: currentChat.online ? '#4CAF50' : '#666' }}>
+          <div style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', color: currentChat.online ? '#4CAF50' : '#666' }}>
             {currentChat.online ? '● Online' : '○ Offline'}
           </div>
         </div>
@@ -137,37 +109,12 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen }) {
             Loading...
           </div>
         )}
-        {/* Toggle Right Panel Button - only show when panel is closed */}
-        {!isRightPanelOpen && (
-          <button
-            onClick={toggleRightPanel}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              border: 'none',
-              backgroundColor: '#f0f0f0',
-              color: '#333',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 16,
-              fontWeight: 'bold',
-              transition: 'background-color 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-            title="Show details"
-          >
-            i
-          </button>
-        )}
+
       </div>
       <div ref={scrollContainerRef} onScroll={handleScroll} style={{
         flex: 1,
         overflowY: 'auto',
-        padding: '20px',
+        padding: 'clamp(15px, 3vw, 20px)',
         minHeight: 0,
         backgroundColor: '#f5f5f5'
       }}>

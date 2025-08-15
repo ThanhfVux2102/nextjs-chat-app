@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import websocketService from '@/lib/websocket'
 import { useRouter } from 'next/navigation'
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }) {
   const {
     chats,
     searchUsers,
@@ -220,16 +220,48 @@ export default function Sidebar() {
 
   return (
     <>
-      <div style={{ padding: 10, height: '100%', display: 'flex', flexDirection: 'column' }}>
-        {/* Header with Messages title and buttons */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 20,
-          position: 'relative'
-        }}>
-          <h3 style={{ fontSize: 30, fontWeight: 700, margin: 0 }}>Messages</h3>
+      <div style={{ 
+        padding: '10px', 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        position: 'relative',
+      }}>
+        {/* Mobile Close Button */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              border: 'none',
+              backgroundColor: '#f0f0f0',
+              color: '#333',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px',
+              zIndex: 1002,
+            }}
+          >
+            ×
+          </button>
+        )}
+                 {/* Header with Messages title and buttons */}
+         <div style={{
+           display: 'flex',
+           justifyContent: 'space-between',
+           alignItems: 'center',
+           marginBottom: 20,
+           position: 'relative',
+           marginTop: onClose ? '40px' : '0',
+         }}>
+           <h3 style={{ fontSize: 'clamp(20px, 4vw, 30px)', fontWeight: 700, margin: 0 }}>Messages</h3>
 
           {/* Buttons container */}
           <div style={{ display: 'flex', gap: 8 }}>
@@ -410,59 +442,61 @@ export default function Sidebar() {
           />
         )}
 
-        <input
-          type="text"
-          placeholder={'Search chats or users...'}
-          value={searchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '12px 16px',
-            marginBottom: 20,
-            border: '1px solid #ddd',
-            borderRadius: 20,
-            outline: 'none',
-            backgroundColor: '#fff',
-            color: '#000',
-            fontSize: 14,
-            boxSizing: 'border-box',
-          }}
-        />
+                 <input
+           type="text"
+           placeholder={'Search chats or users...'}
+           value={searchQuery}
+           onChange={(e) => handleSearch(e.target.value)}
+           style={{
+             width: '100%',
+             padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px)',
+             marginBottom: 20,
+             border: '1px solid #ddd',
+             borderRadius: 20,
+             outline: 'none',
+             backgroundColor: '#fff',
+             color: '#000',
+             fontSize: 'clamp(12px, 3vw, 14px)',
+             boxSizing: 'border-box',
+           }}
+         />
 
-        <div style={{ marginBottom: 20, display: 'flex', gap: 10 }}>
-          <button
-            onClick={() => {
-              setShowUserSearch(false)
-            }}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: !showUserSearch ? '#007AFF' : '#f0f0f0',
-              color: !showUserSearch ? '#fff' : '#333',
-              border: 'none',
-              borderRadius: 20,
-              cursor: 'pointer',
-              fontSize: 12,
-            }}
-          >
-            Chats
-          </button>
-          <button
-            onClick={() => {
-              setShowUserSearch(true)
-            }}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: showUserSearch ? '#007AFF' : '#f0f0f0',
-              color: showUserSearch ? '#fff' : '#333',
-              border: 'none',
-              borderRadius: 20,
-              cursor: 'pointer',
-              fontSize: 12,
-            }}
-          >
-            Find Users
-          </button>
-        </div>
+                 <div style={{ marginBottom: 20, display: 'flex', gap: 'clamp(8px, 2vw, 10px)' }}>
+           <button
+             onClick={() => {
+               setShowUserSearch(false)
+             }}
+             style={{
+               padding: 'clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px)',
+               backgroundColor: !showUserSearch ? '#007AFF' : '#f0f0f0',
+               color: !showUserSearch ? '#fff' : '#333',
+               border: 'none',
+               borderRadius: 20,
+               cursor: 'pointer',
+               fontSize: 'clamp(10px, 2.5vw, 12px)',
+               flex: 1,
+             }}
+           >
+             Chats
+           </button>
+           <button
+             onClick={() => {
+               setShowUserSearch(true)
+             }}
+             style={{
+               padding: 'clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px)',
+               backgroundColor: showUserSearch ? '#007AFF' : '#f0f0f0',
+               color: showUserSearch ? '#fff' : '#333',
+               border: 'none',
+               borderRadius: 20,
+               cursor: 'pointer',
+               fontSize: 'clamp(10px, 2.5vw, 12px)',
+               flex: 1,
+             }}
+           >
+             Find Users
+           </button>
+         </div>
 
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -590,8 +624,8 @@ export default function Sidebar() {
                     onClick={() => handleCreateChat(item)}
                     style={{
                       display: 'flex',
-                      gap: 12,
-                      padding: '15px 10px',
+                      gap: 'clamp(8px, 2vw, 12px)',
+                      padding: 'clamp(10px, 2.5vw, 15px) clamp(8px, 2vw, 10px)',
                       alignItems: 'center',
                       cursor: 'pointer',
                       borderRadius: 8,
@@ -605,32 +639,32 @@ export default function Sidebar() {
                     <img
                       src={item.avatar || '/default-avatar.svg'}
                       alt={item.username || item.name || 'user'}
-                      style={{ width: 45, height: 45, borderRadius: '50%', objectFit: 'cover' }}
+                      style={{ width: 'clamp(35px, 8vw, 45px)', height: 'clamp(35px, 8vw, 45px)', borderRadius: '50%', objectFit: 'cover' }}
                     />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 'bold', fontSize: 14, color: '#333', marginBottom: 4 }}>
-                        {item.username || item.name}
+                                          <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 'bold', fontSize: 'clamp(12px, 3vw, 14px)', color: '#333', marginBottom: 4 }}>
+                          {item.username || item.name}
+                        </div>
+                        <div style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.email || ''}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 12, color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.email || ''}
-                      </div>
-                    </div>
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
                         handleCreateChat(item)
                       }}
                       style={{
-                        padding: '2px 6px',
+                        padding: 'clamp(2px, 1vw, 4px) clamp(4px, 1.5vw, 6px)',
                         backgroundColor: '#28a745',
                         color: '#fff',
                         border: 'none',
                         borderRadius: 3,
                         cursor: 'pointer',
-                        fontSize: 9,
+                        fontSize: 'clamp(8px, 2vw, 10px)',
                         marginLeft: 'auto',
-                        minWidth: '30px',
-                        maxWidth: '35px',
+                        minWidth: 'clamp(25px, 6vw, 30px)',
+                        maxWidth: 'clamp(30px, 7vw, 35px)',
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -651,8 +685,8 @@ export default function Sidebar() {
                   onClick={() => handleUserClick(item)}
                   style={{
                     display: 'flex',
-                    gap: 12,
-                    padding: '15px 10px',
+                    gap: 'clamp(8px, 2vw, 12px)',
+                    padding: 'clamp(10px, 2.5vw, 15px) clamp(8px, 2vw, 10px)',
                     alignItems: 'center',
                     cursor: 'pointer',
                     borderRadius: 8,
@@ -672,13 +706,13 @@ export default function Sidebar() {
                   <img
                     src={item.avatar || '/default-avatar.svg'}
                     alt={item.name || item.username || 'chat'}
-                    style={{ width: 45, height: 45, borderRadius: '50%', objectFit: 'cover' }}
+                    style={{ width: 'clamp(35px, 8vw, 45px)', height: 'clamp(35px, 8vw, 45px)', borderRadius: '50%', objectFit: 'cover' }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
                         fontWeight: 'bold',
-                        fontSize: 14,
+                        fontSize: 'clamp(12px, 3vw, 14px)',
                         color: '#333',
                         marginBottom: 4,
                         whiteSpace: 'nowrap',
@@ -690,7 +724,7 @@ export default function Sidebar() {
                     </div>
                     <div
                       style={{
-                        fontSize: 12,
+                        fontSize: 'clamp(10px, 2.5vw, 12px)',
                         color: '#666',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -708,8 +742,8 @@ export default function Sidebar() {
                         setOpenChatOptionsId(prev => prev === id ? null : id)
                       }}
                       style={{
-                        width: 32,
-                        height: 32,
+                        width: 'clamp(28px, 6vw, 32px)',
+                        height: 'clamp(28px, 6vw, 32px)',
                         borderRadius: '50%',
                         border: 'none',
                         backgroundColor: '#f0f0f0',
@@ -718,8 +752,8 @@ export default function Sidebar() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 18,
-                        lineHeight: '32px',
+                        fontSize: 'clamp(14px, 3.5vw, 18px)',
+                        lineHeight: 'clamp(28px, 6vw, 32px)',
                         padding: 0
                       }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
