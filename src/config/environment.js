@@ -2,7 +2,7 @@
 export const config = {
   API_BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'https://chat-app-backend-3vsf.onrender.com',
   WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'wss://chat-app-backend-3vsf.onrender.com/ws',
-  
+
   // API Endpoints
   ENDPOINTS: {
     LOGIN: '/api/auth/login',
@@ -14,7 +14,7 @@ export const config = {
     CREATE_PERSONAL_CHAT: '/api/chat/create/personal',
     SEARCH_USERS: '/api/users/search'
   },
-  
+
   // WebSocket message types
   WS_MESSAGE_TYPES: {
     LOAD_CHAT: 'load_chat',
