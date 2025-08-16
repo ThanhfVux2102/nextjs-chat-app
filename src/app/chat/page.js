@@ -8,7 +8,7 @@ import UserPanel from '../components/UserPanel'
 import SlideOverWrapper from '../components/SlideOverWrapper'
 
 export default function ChatPage() {
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true)
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
 
@@ -19,10 +19,10 @@ export default function ChatPage() {
       setIsMobile(mobile)
       if (mobile) {
         setIsSidebarOpen(false)
-        setIsRightPanelOpen(false)
+        setIsRightPanelOpen(false) // ensure closed on mobile
       } else {
         setIsSidebarOpen(true)
-        setIsRightPanelOpen(true)
+        // do not auto-open right panel on desktop; keep user's current state
       }
     }
 
@@ -100,12 +100,12 @@ export default function ChatPage() {
 
                           {/* Chat Area */}
          <div style={{ 
-           flex: isMobile ? 1 : (isRightPanelOpen ? 5 : 10), 
+           flex: 1, 
            display: 'flex', 
            flexDirection: 'column', 
-           borderRight: (isRightPanelOpen && !isMobile) ? '1px solid #ddd' : 'none',
+           borderRight: 'none',
            backgroundColor: '#f8f9fa',
-           width: isMobile ? '100%' : 'auto',
+           width: '100%',
            minWidth: 0,
            transition: 'flex 0.3s ease',
            position: 'relative',
@@ -116,86 +116,85 @@ export default function ChatPage() {
              isMobile={isMobile}
            />
            
-           {/* Floating User Icon - positioned on the right side of chat area */}
-           {!isRightPanelOpen && !isMobile && (
-             <button
-               onClick={toggleRightPanel}
-               style={{
-                 position: 'absolute',
-                 top: '50%',
-                 right: '20px',
-                 transform: 'translateY(-50%)',
-                 width: '50px',
-                 height: '50px',
-                 borderRadius: '50%',
-                 border: 'none',
-                 backgroundColor: '#f0f0f0',
-                 color: '#333',
-                 cursor: 'pointer',
-                 display: 'flex',
-                 alignItems: 'center',
-                 justifyContent: 'center',
-                 fontSize: '24px',
-                 boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                 zIndex: 997,
-                 transition: 'all 0.2s ease',
-               }}
-               onMouseEnter={(e) => {
-                 e.currentTarget.style.backgroundColor = '#e0e0e0'
-                 e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)'
-               }}
-               onMouseLeave={(e) => {
-                 e.currentTarget.style.backgroundColor = '#f0f0f0'
-                 e.currentTarget.style.transform = 'translateY(-50%) scale(1)'
-               }}
-               title="Show user details"
-             >
-               👤
+           {/* Floating User Icon - positioned at the top-right of chat area */}
+          {!isRightPanelOpen && !isMobile && (
+            <button
+              onClick={toggleRightPanel}
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                width: '50px',
+                height: '50px',
+                borderRadius: '50%',
+                border: 'none',
+                backgroundColor: '#f0f0f0',
+                color: '#333',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                zIndex: 997,
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#e0e0e0'
+                e.currentTarget.style.transform = 'scale(1.06)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f0f0f0'
+                e.currentTarget.style.transform = 'scale(1)'
+              }}
+              title="Show user details"
+            >
+              👤
              </button>
            )}
-         </div>
 
-                 {/* User Panel */}
-         {isMobile ? (
-           <SlideOverWrapper
-             isOpen={isRightPanelOpen}
-             onClose={toggleRightPanel}
-             isMobile={isMobile}
-             position="right"
-             width="400px"
-             minWidth="300px"
-           >
-             <UserPanel 
-               toggleRightPanel={toggleRightPanel}
-               isRightPanelOpen={isRightPanelOpen}
-               isMobile={isMobile}
-             />
-           </SlideOverWrapper>
-         ) : (
-           <>
-             
-             
-                           {isRightPanelOpen && (
-                <div style={{ 
-                  flex: 3,
-                  width: 'auto',
-                  maxWidth: '400px',
-                  minWidth: '300px',
-                  backgroundColor: '#fff',
-                  position: 'relative',
-                  height: '100vh',
-                  overflow: 'hidden',
-                  boxShadow: '0 0 20px rgba(0,0,0,0.1)',
-                }}>
-                  <UserPanel 
-                    toggleRightPanel={toggleRightPanel}
-                    isRightPanelOpen={isRightPanelOpen}
-                    isMobile={isMobile}
-                  />
-                </div>
-              )}
-           </>
-         )}
+        {/* User Panel */}
+        {isMobile ? (
+          <SlideOverWrapper
+            isOpen={isRightPanelOpen}
+            onClose={toggleRightPanel}
+            isMobile={isMobile}
+            position="right"
+            width="400px"
+            minWidth="300px"
+          >
+            <UserPanel 
+              toggleRightPanel={toggleRightPanel}
+              isRightPanelOpen={isRightPanelOpen}
+              isMobile={isMobile}
+            />
+          </SlideOverWrapper>
+        ) : (
+          <>{isRightPanelOpen && (
+            <div style={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
+              width: 380,
+              maxWidth: '92vw',
+              maxHeight: '70vh',
+              backgroundColor: '#fff',
+              borderRadius: 12,
+              overflow: 'auto',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+              zIndex: 1002,
+            }}>
+              <UserPanel 
+                toggleRightPanel={toggleRightPanel}
+                isRightPanelOpen={isRightPanelOpen}
+                isMobile={isMobile}
+              />
+            </div>
+          )}
+          </>
+        )}
+
+        </div>
 
         {/* Mobile Overlay - only for sidebar since UserPanel has its own */}
         {isMobile && isSidebarOpen && (

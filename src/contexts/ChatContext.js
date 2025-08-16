@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect } from 'react'
-import { getChatList, getMessageHistory, createPersonalChat, createGroupChat as createGroupChatAPI, deleteChat as deleteChatAPI, searchUsers as searchUsersAPI, checkSession, testBackendEndpoints } from '@/lib/api'
+import { getChatList, getMessageHistory, createPersonalChat, createGroupChat as createGroupChatAPI, deleteChat as deleteChatAPI, searchUsers as searchUsersAPI, checkSession, testBackendEndpoints, getChatMembers } from '@/lib/api'
 import websocketService from '@/lib/websocket'
 import { useAuth } from './AuthContext'
 
@@ -29,6 +29,7 @@ export function ChatProvider({ children }) {
   const [sentMessages, setSentMessages] = useState(new Set()) // Track messages we sent
   const [recentSentContent, setRecentSentContent] = useState(new Set()) // Track recent sent content
   const [recentMessages, setRecentMessages] = useState([]) // Track recent messages for echo detection
+  const [chatMembersByChatId, setChatMembersByChatId] = useState({}) // Cache of members per chat_id
 
   // Message persistence functions
   const getMessagesStorageKey = (chatId) => `chatMessages_${currentUser?.id}_${chatId}`
@@ -577,6 +578,7 @@ export function ChatProvider({ children }) {
     setRecentMessages([])
     setSentMessages(new Set())
     setCurrentChat(null)
+    setChatMembersByChatId({})
   }, [currentUser?.id])
 
   const loadChatList = async (cursor = null) => {
@@ -913,7 +915,8 @@ export function ChatProvider({ children }) {
     }
 
     setCurrentChat(chat)
-    if (chat && chat.chat_id) {
+    const cid = chat?.chat_id || chat?.id
+    if (cid) {
       // Load persisted messages first for instant display
       const persistedMessages = loadPersistedMessages(chat.chat_id)
       if (persistedMessages.length > 0) {
@@ -932,15 +935,41 @@ export function ChatProvider({ children }) {
         })
       }
 
-      websocketService.loadChat(chat.chat_id)
+      websocketService.loadChat(cid)
       // Initialize pagination state for this chat
       setMessagePagination(prev => ({
         ...prev,
-        [chat.chat_id]: { cursor: null, hasMore: true, isLoading: false }
+        [cid]: { cursor: null, hasMore: true, isLoading: false }
       }))
+
+      // Attempt to fetch members for this chat (useful for group chats)
+      ;(async () => {
+        try {
+          const res = await getChatMembers(cid)
+          const items = res.items || []
+          if (Array.isArray(items) && items.length > 0) {
+            setChatMembersByChatId(prev => ({ ...prev, [cid]: items }))
+          }
+        } catch (e) {
+          // Silently ignore; UI will fallback to generic labels
+          console.warn('Failed to fetch chat members:', e?.message)
+        }
+      })()
     } else {
       setMessages([])
     }
+  }
+
+  // Resolve a user-friendly display for a given user id within a chat
+  const getDisplayForUser = (userId, chatId) => {
+    if (!userId || !chatId) return null
+    const list = chatMembersByChatId[chatId] || []
+    const match = list.find(u => String(u.id) === String(userId))
+    if (match) {
+      const label = match.username || match.email
+      if (label && typeof label === 'string' && label.trim()) return label
+    }
+    return null
   }
 
   const getMessagesForUser = (chatId) => {
@@ -1004,7 +1033,10 @@ export function ChatProvider({ children }) {
     setUsers,
     setChats,
     testBackendEndpoints, // Add the test function to the context
-    displayName // Add the displayName helper function
+    displayName, // Add the displayName helper function
+    // Members helpers
+    chatMembersByChatId,
+    getDisplayForUser,
   }
 
   return (

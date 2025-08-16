@@ -94,3 +94,33 @@
   height: 100vh;
   object-fit: cover;
 }
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .form-section { width: 45%; }
+  .image-section { width: 55%; }
+}
+
+@media (max-width: 768px) {
+  .login-container {
+    flex-direction: column;
+    height: auto;
+  }
+  .form-section {
+    width: 100%;
+    padding: 24px 16px;
+    box-shadow: none;
+  }
+  .image-section {
+    width: 100%;
+    height: 40vh;
+  }
+  .image-section img {
+    height: 100%;
+  }
+  .options {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

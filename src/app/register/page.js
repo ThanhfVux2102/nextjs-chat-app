@@ -4,8 +4,10 @@ import { useState } from 'react'
 import { register } from '@/lib/api'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import './register.css'
 
 export default function RegisterPage() {
+  const router = useRouter()
   const [form, setForm] = useState({
     username: '',
     email: '',
@@ -38,28 +40,17 @@ export default function RegisterPage() {
 
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
-
-      <div style={{ flex: 7, backgroundColor: '#e0e0e0' }}>
-        {<img
+    <div className="register-container">
+      <div className="register-image-section">
+        <img
           src="/register.jpg"
-          alt="Login background"
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-        />}
+          alt="Register background"
+        />
       </div>
 
-
-      <div
-        style={{
-          flex: 3,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: '#D9D9D9'
-        }}
-      >
-        <form onSubmit={handleSubmit} style={{ width: '80%', maxWidth: '400px' }}>
-          <h2 style={{ color: 'gray' }}>REGISTER YOUR ACCOUNT</h2>
+      <div className="register-form-section">
+        <form onSubmit={handleSubmit} className="register-form">
+          <h2>REGISTER YOUR ACCOUNT</h2>
           <input name="username" placeholder="Username" onChange={handleChange} value={form.username} required style={{
             color: 'black', border: '1px solid black',
             padding: '8px',
@@ -76,7 +67,7 @@ export default function RegisterPage() {
             width: '100%',
             boxSizing: 'border-box'
           }} />
-          <input name="password" type="password" placeholder="Password" onChange={handleChange} value={form.password} required style={{
+          <input name="password" type="password" placeholder="Password" onChange={handleChange} value={form.password} required autoComplete="new-password" style={{
             color: 'black', border: '1px solid black',
             padding: '8px',
             borderRadius: '4px',
@@ -84,7 +75,7 @@ export default function RegisterPage() {
             width: '100%',
             boxSizing: 'border-box'
           }} />
-          <input name="confirmPassword" type="password" placeholder="Confirm Password" onChange={handleChange} value={form.confirmPassword} required style={{
+          <input name="confirmPassword" type="password" placeholder="Confirm Password" onChange={handleChange} value={form.confirmPassword} required autoComplete="new-password" style={{
             color: 'black', border: '1px solid black',
             padding: '8px',
             borderRadius: '4px',
@@ -92,7 +83,7 @@ export default function RegisterPage() {
             width: '100%',
             boxSizing: 'border-box'
           }} />
-          <button type="submit">Register</button>
+          <button type="submit" className="register-btn">Register</button>
           {message && <p style={{ color: 'red', marginTop: 10 }}>{message}</p>}
 
           <p style={{ marginTop: '10px', textAlign: 'center' }}>

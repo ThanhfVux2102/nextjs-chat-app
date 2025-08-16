@@ -82,7 +82,7 @@ const Login = () => {
             <input
               type="password"
               placeholder="Enter your password"
-              value={password}
+              autoComplete="new-password"
               onChange={(e) => setPassword(e.target.value)}
             />
             <img src="/lock-icon.png" alt="lock icon" />

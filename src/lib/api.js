@@ -401,6 +401,47 @@ export async function deleteChat(chatId) {
   throw lastError || new Error('Failed to delete chat')
 }
 
+// Fetch members of a chat (group) from a single canonical endpoint: GET /api/chat/{chatId}/members
+export async function getChatMembers(chatId) {
+  if (!chatId) return { items: [] }
+
+  const id = encodeURIComponent(chatId)
+  const url = `${BASE_URL}/api/chat/${id}/members`
+
+  const res = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+    headers: defaultHeaders(),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`GET /api/chat/${id}/members failed: ${res.status} ${res.statusText}: ${text}`)
+  }
+
+  const data = await res.json()
+
+  // Expected: array of member user IDs, e.g. ["id1","id2"].
+  // Also support an array of user objects (id/username/etc) for forward compatibility.
+  const list = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : [])
+
+  const normalized = list.map((u) => {
+    if (u && (typeof u === 'string' || typeof u === 'number')) {
+      return { id: String(u) }
+    }
+    const backendId = u?.id ?? u?.user_id ?? u?._id ?? u?.uid ?? u?.uuid ?? null
+    return {
+      ...u,
+      id: backendId ? String(backendId) : undefined,
+      username: u?.username || u?.name || u?.fullname || u?.displayName || u?.email,
+      email: u?.email || u?.mail || '',
+      avatar: u?.avatar || u?.photo || u?.picture || u?.image || '/default-avatar.svg',
+    }
+  }).filter(Boolean)
+
+  return { items: normalized }
+}
+
 export async function getCurrentUser() {
 
 

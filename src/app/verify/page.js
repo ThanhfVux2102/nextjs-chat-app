@@ -26,13 +26,13 @@ export default function VerifyPage() {
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#444' }}>
-      <div style={{ background: 'white', padding: '30px', borderRadius: '20px', width: '350px' }}>
+      <div style={{ background: 'white', padding: '30px', borderRadius: '20px', width: 'min(420px, 92vw)' }}>
 
         <h2 style={{ fontWeight: 'bold', color: '#555' }}>Check your email</h2>
         <p style={{ color: '#555' }}>We sent a reset link to <b>contact@dscode...com</b><br />
           Enter 5 digit code that mentioned in the email</p>
 
-        <div style={{ display: 'flex', gap: '10px', margin: '20px 0' }}>
+        <div style={{ display: 'flex', gap: '10px', margin: '20px 0', flexWrap: 'wrap', justifyContent: 'center' }}>
           {code.map((c, i) => (
             <input
               key={i}

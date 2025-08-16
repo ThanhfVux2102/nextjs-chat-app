@@ -7,7 +7,7 @@ import MessageBubble from './MessageBubble'
 import { useEffect, useRef, useCallback } from 'react'
 
 export default function ChatBox({ toggleRightPanel, isRightPanelOpen, isMobile }) {
-  const { currentChat, getMessagesForUser, addMessage, loading, loadMoreMessages, isMessageFromCurrentUser } = useChat()
+  const { currentChat, getMessagesForUser, addMessage, loading, loadMoreMessages, isMessageFromCurrentUser, displayName, getDisplayForUser } = useChat()
   const { user: currentUser } = useAuth()
   const messagesEndRef = useRef(null)
   const scrollContainerRef = useRef(null)
@@ -48,6 +48,50 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen, isMobile }
     }
 
     addMessage(newMessage)
+  }
+
+  // Compute a human-friendly sender label for each message
+  const getSenderLabel = (msg, isOwn) => {
+    if (isOwn) return 'You'
+
+    // Prefer explicit sender fields on the message
+    const fromMsg = msg.sender_username || msg.sender_name || msg.username || msg.name || msg.sender_email || msg.email
+    if (fromMsg) return fromMsg
+
+    // Derive sender id from various possible fields
+    const senderId = (
+      msg.from ??
+      msg.sender_id ??
+      msg.user_id ??
+      msg.senderId ??
+      msg.userId ??
+      msg.sender ??
+      msg.author_id ??
+      msg.authorId ??
+      null
+    )
+
+    // Try resolving via context members cache (group chats)
+    const resolved = getDisplayForUser?.(senderId, currentChat?.chat_id || currentChat?.id)
+    if (resolved) return resolved
+
+    // Detect if group chat (participants > 2)
+    const isGroup = Array.isArray(currentChat?.participants) && currentChat.participants.length > 2
+
+    if (isGroup) {
+      // Fallback to a short ID label for groups if we don't know the username
+      const shortId = String(senderId ?? '').slice(-4)
+      return shortId ? `User ${shortId}` : 'Member'
+    }
+
+    // Personal chat: use the counterpart info or displayName helper
+    const counterpart = currentChat?.other_user_username || currentChat?.username || currentChat?.other_user_email || currentChat?.email
+    if (counterpart) return counterpart
+
+    try {
+      if (typeof displayName === 'function') return displayName(currentChat)
+    } catch (_) { }
+    return 'Unknown'
   }
 
   const messages = currentChat ? getMessagesForUser(currentChat.chat_id || currentChat.id) : []
@@ -100,9 +144,6 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen, isMobile }
           <div style={{ fontWeight: 'bold', fontSize: 'clamp(14px, 3.5vw, 16px)' }}>
             {currentChat.name || currentChat.username}
           </div>
-          <div style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', color: currentChat.online ? '#4CAF50' : '#666' }}>
-            {currentChat.online ? '● Online' : '○ Offline'}
-          </div>
         </div>
         {loading && (
           <div style={{ fontSize: '12px', color: '#666', marginRight: 10 }}>
@@ -122,6 +163,7 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen, isMobile }
           (() => {
             return messages.map((msg, i) => {
               const isOwn = isMessageFromCurrentUser?.(msg.from) ?? (String(msg.from) === String(currentUser?.id));
+              const senderLabel = getSenderLabel(msg, isOwn);
 
               return (
                 <MessageBubble
@@ -130,6 +172,7 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen, isMobile }
                   text={msg.text}
                   timestamp={msg.timestamp}
                   isOwn={isOwn}
+                  senderLabel={senderLabel}
                 />
               );
             });
