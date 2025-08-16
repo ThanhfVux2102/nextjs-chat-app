@@ -90,11 +90,11 @@ export function ChatProvider({ children }) {
     }
   }, [messages, currentUser?.id])
 
-  // Chuẩn hóa mảng participant về mảng string, bỏ null/undefined
+  // normalize participants
   const normParticipants = (p) =>
     Array.isArray(p) ? Array.from(new Set(p.map(String).filter(Boolean))).sort() : [];
 
-  // So sánh 2 room là cùng phòng không
+  // compare 2 rooms
   const isSameRoom = (a, b) => {
     const aId = a.chat_id || a.id;
     const bId = b.chat_id || b.id;
@@ -103,14 +103,14 @@ export function ChatProvider({ children }) {
     const pa = normParticipants(a.participants || a.member_ids);
     const pb = normParticipants(b.participants || b.member_ids);
     if (pa.length && pb.length && pa.length === pb.length) {
-      // cùng tập participants ⇒ coi là cùng phòng
+      // same participants ⇒ same room
       for (let i = 0; i < pa.length; i++) if (pa[i] !== pb[i]) return false;
       return true;
     }
     return false;
   };
 
-  // tên generic/placeholder (để tránh downgrade)
+  // generic/placeholder (to avoid downgrade)
   const isGenericName = (n = '') => {
     const s = String(n).trim().toLowerCase();
     return (
@@ -124,7 +124,7 @@ export function ChatProvider({ children }) {
     );
   };
 
-  // Helper để hiển thị tên chat ưu tiên username/email thay vì "Chat with User"
+  // Helper to display chat name, prefer username/email over "Chat with User"
   const displayName = (item) => {
     const nice = item.other_user_username || item.username || item.other_user_email || item.email;
     if (nice) return nice;
@@ -138,7 +138,7 @@ export function ChatProvider({ children }) {
   const upsertChat = (incomingRaw) => {
     if (!incomingRaw) return;
 
-    // Chuẩn hóa incoming trước khi merge
+    // normalize incoming before merge
     const incoming = {
       ...incomingRaw,
       chat_id: incomingRaw.chat_id || incomingRaw.id,
@@ -147,7 +147,7 @@ export function ChatProvider({ children }) {
     const incomingName = incoming.name || incoming.chat_name || incoming.username;
 
     setChats((prev) => {
-      // Tìm phòng trùng bằng chat_id hoặc participants
+      // find room by chat_id or participants
       const idx = prev.findIndex((c) => isSameRoom(c, incoming));
       if (idx !== -1) {
         const existing = prev[idx];
@@ -156,9 +156,9 @@ export function ChatProvider({ children }) {
         const merged = {
           ...existing,
           ...incoming,
-          // Không cho tên generic ghi đè tên “đẹp”
+          // don't override nice name with generic name
           name: !isGenericName(incomingName) ? incomingName : existingName,
-          // Giữ các field “đối tác” nếu đã có
+          // keep counterpart fields if they exist
           other_user_id: incoming.other_user_id || existing.other_user_id,
           other_user_username: incoming.other_user_username || existing.other_user_username,
           other_user_email: incoming.other_user_email || existing.other_user_email,
@@ -166,7 +166,7 @@ export function ChatProvider({ children }) {
           email: incoming.email || existing.email,
           avatar: incoming.avatar || existing.avatar,
           user_id: incoming.user_id || existing.user_id,
-          // luôn giữ participants chuẩn hóa
+          // always keep normalized participants
           participants: normParticipants(incoming.participants || existing.participants),
         };
 
@@ -175,7 +175,7 @@ export function ChatProvider({ children }) {
         return next;
       }
 
-      // Không trùng ⇒ thêm mới
+      // no match ⇒ add new
       return [
         {
           ...incoming,
@@ -199,7 +199,7 @@ export function ChatProvider({ children }) {
       }
       const next = [...previousChats]
       next.splice(idx, 1)
-      // move updated chat to top
+      // move updated chat to top (most recent)
       return [updatedChat, ...next]
     })
   }
@@ -589,7 +589,7 @@ export function ChatProvider({ children }) {
       const response = await getChatList(cursor)
       const items = response.chats || []
 
-      // normalize tối thiểu để upsert hoạt động chính xác
+      // normalize minimum to ensure upsert works correctly
       items.forEach((raw) => {
         const normalized = {
           ...raw,
@@ -601,14 +601,14 @@ export function ChatProvider({ children }) {
           other_user_email: raw.other_user_email || raw.email,
           last_message: raw.last_message || '',
         }
-        upsertChat(normalized) // dùng cơ chế merge/dedupe
+        upsertChat(normalized) // use merge/dedupe mechanism
       })
 
       setNextCursor(response.next_cursor || null)
 
     } catch (error) {
       console.error('❌ Error loading chat list:', error)
-      // không setChats ([]) nữa để không xoá state đang ổn
+      // don't setChats ([]) anymore to avoid clearing the current state
     } finally {
       setLoading(false)
     }
