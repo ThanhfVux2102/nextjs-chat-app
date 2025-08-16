@@ -7,7 +7,7 @@ import MessageBubble from './MessageBubble'
 import { useEffect, useRef, useCallback } from 'react'
 
 export default function ChatBox({ toggleRightPanel, isRightPanelOpen, isMobile }) {
-  const { currentChat, getMessagesForUser, addMessage, loading, loadMoreMessages, isMessageFromCurrentUser, displayName, getDisplayForUser } = useChat()
+  const { currentChat, getMessagesForUser, addMessage, loading, loadMoreMessages, isMessageFromCurrentUser, displayName, getDisplayForUser, deleteChat } = useChat()
   const { user: currentUser } = useAuth()
   const messagesEndRef = useRef(null)
   const scrollContainerRef = useRef(null)
@@ -94,6 +94,14 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen, isMobile }
     return 'Unknown'
   }
 
+  const handleDeleteCurrentChat = async () => {
+    if (!currentChat) return
+    const id = currentChat.chat_id || currentChat.id
+    const ok = confirm('Delete this chat? This cannot be undone.')
+    if (!ok) return
+    await deleteChat(id)
+  }
+
   const messages = currentChat ? getMessagesForUser(currentChat.chat_id || currentChat.id) : []
 
   if (!currentChat) {
@@ -145,6 +153,27 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen, isMobile }
             {currentChat.name || currentChat.username}
           </div>
         </div>
+        <button
+          title="Delete chat"
+          onClick={handleDeleteCurrentChat}
+          style={{
+            width: 'clamp(28px, 6vw, 32px)',
+            height: 'clamp(28px, 6vw, 32px)',
+            borderRadius: '50%',
+            border: 'none',
+            backgroundColor: '#f0f0f0',
+            color: '#d32f2f',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 'clamp(14px, 3.5vw, 16px)'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#ffeaea'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+        >
+          🗑️
+        </button>
         {loading && (
           <div style={{ fontSize: '12px', color: '#666', marginRight: 10 }}>
             Loading...
