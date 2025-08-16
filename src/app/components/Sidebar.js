@@ -5,7 +5,7 @@ import { useChat } from '@/contexts/ChatContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }) {
   const {
     chats,
     searchUsers,
@@ -17,7 +17,6 @@ export default function Sidebar() {
     createGroup,
     deleteChat,
     currentChat,
-    testBackendEndpoints,
   } = useChat()
 
   const { user: currentUser, logout } = useAuth()
@@ -39,40 +38,14 @@ export default function Sidebar() {
   const [openChatOptionsId, setOpenChatOptionsId] = useState(null)
 
   const handleSearch = async (query) => {
-    console.log('🔍 Search triggered with query:', query)
     setSearchQuery(query)
     if (query.trim()) {
       setSearching(true)
       try {
-        console.log('🔍 Calling searchUsers with query:', query)
-        // Run user search while also filtering chats locally
-        const [results] = await Promise.all([
-          searchUsers(query),
-        ])
-        console.log('🔍 Search results received:', results)
-        console.log('🔍 Search results type:', typeof results)
-        console.log('🔍 Search results is array:', Array.isArray(results))
-        console.log('🔍 Search results keys:', results ? Object.keys(results) : 'null/undefined')
-        
-        // Handle different response formats
-        let users = []
-        if (Array.isArray(results)) {
-          users = results
-        } else if (results && Array.isArray(results.users)) {
-          users = results.users
-        } else if (results && Array.isArray(results.data)) {
-          users = results.data
-        } else if (results && results.items && Array.isArray(results.items)) {
-          users = results.items
-        } else {
-          console.log('🔍 No recognizable array found in results, using empty array')
-          users = []
-        }
-        
-        console.log('🔍 Processed users array:', users)
+        const results = await searchUsers(query)
+        const users = Array.isArray(results) ? results : []
         setSearchResults(users)
 
-        // Filter chats locally based on name or last_message match
         const chatMatches = (Array.isArray(chats) ? chats : []).filter((c) => {
           const hay = `${c.name || c.chat_name || c.username || ''} ${c.last_message || ''}`.toLowerCase()
           return hay.includes(query.toLowerCase())
@@ -81,16 +54,23 @@ export default function Sidebar() {
 
         // Enter combined search view
         setShowUserSearch(true)
-        console.log('🔍 Search results set, showUserSearch set to true')
       } catch (err) {
         console.error('Error searching users:', err)
+
+        // Check if it's an authentication error
+        if (err.status === 401 || err.message?.includes('Authentication expired')) {
+          alert('Your session has expired. Please log in again.')
+          logout()
+          router.push('/login')
+          return
+        }
+
         setSearchResults([])
         setChatSearchResults([])
       } finally {
         setSearching(false)
       }
     } else {
-      console.log('🔍 Empty query, clearing search results')
       setSearchResults([])
       setChatSearchResults([])
       setShowUserSearch(false)
@@ -98,43 +78,28 @@ export default function Sidebar() {
   }
 
   const handleModalSearch = async (query) => {
-    console.log('🔍 Modal search triggered with query:', query)
     setModalSearchQuery(query)
     if (query.trim()) {
       setModalSearching(true)
       try {
-        console.log('🔍 Calling searchUsers with query:', query)
         const results = await searchUsers(query)
-        console.log('🔍 Modal search results received:', results)
-        console.log('🔍 Modal search results type:', typeof results)
-        console.log('🔍 Modal search results is array:', Array.isArray(results))
-        console.log('🔍 Modal search results keys:', results ? Object.keys(results) : 'null/undefined')
-        
-        // Handle different response formats
-        let users = []
-        if (Array.isArray(results)) {
-          users = results
-        } else if (results && Array.isArray(results.users)) {
-          users = results.users
-        } else if (results && Array.isArray(results.data)) {
-          users = results.data
-        } else if (results && results.items && Array.isArray(results.items)) {
-          users = results.items
-        } else {
-          console.log('🔍 No recognizable array found in modal results, using empty array')
-          users = []
-        }
-        
-        console.log('🔍 Processed modal users array:', users)
-        setModalSearchResults(users)
+        setModalSearchResults(results)
       } catch (err) {
         console.error('Error searching users in modal:', err)
+
+        // Check if it's an authentication error
+        if (err.status === 401 || err.message?.includes('Authentication expired')) {
+          alert('Your session has expired. Please log in again.')
+          logout()
+          router.push('/login')
+          return
+        }
+
         setModalSearchResults([])
       } finally {
         setModalSearching(false)
       }
     } else {
-      console.log('🔍 Empty modal query, clearing results')
       setModalSearchResults([])
     }
   }
@@ -146,12 +111,8 @@ export default function Sidebar() {
   }
 
   const handleCreateChat = async (user) => {
-    console.log('🔍 handleCreateChat called with user:', user)
-    console.log('🔍 User ID:', user.id)
-    console.log('🔍 User object keys:', Object.keys(user))
     try {
       const newChat = await createChat(user.id, user)
-      console.log('🔍 Chat creation successful, newChat:', newChat)
       if (newChat) {
         setCurrentChatUser(newChat)
         setShowUserSearch(false)
@@ -166,11 +127,7 @@ export default function Sidebar() {
         message: error.message,
         stack: error.stack
       })
-      
-      // Don't show alert for chat already exists - it's handled gracefully
-      if (error.message !== 'CHAT_ALREADY_EXISTS') {
-        alert('Failed to create chat')
-      }
+      // UI alert handled inside ChatContext.createChat; avoid duplicate popups here
     }
   }
 
@@ -180,11 +137,10 @@ export default function Sidebar() {
   }
 
   const handleResetPassword = () => {
-    router.push('/reset-password')
+    router.push('/forget-password')
   }
 
   const handleAddClick = () => {
-    console.log('🔍 Add button clicked, opening group modal')
     setShowGroupModal(true)
     setModalSearchQuery('')
     setModalSearchResults([])
@@ -224,27 +180,52 @@ export default function Sidebar() {
   }
 
   const displayChats = showUserSearch ? searchResults : (Array.isArray(chats) ? chats : [])
-  console.log('🔍 Display debug:', {
-    showUserSearch,
-    searchResults,
-    chats: Array.isArray(chats) ? chats : [],
-    displayChats,
-    displayChatsLength: displayChats.length
-  })
 
   return (
     <>
-      <div style={{ padding: 10, height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{
+        padding: '10px',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+      }}>
+        {/* Mobile Close Button */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              border: 'none',
+              backgroundColor: '#f0f0f0',
+              color: '#333',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px',
+              zIndex: 1002,
+            }}
+          >
+            ×
+          </button>
+        )}
         {/* Header with Messages title and buttons */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
           marginBottom: 20,
-          position: 'relative'
+          position: 'relative',
+          marginTop: onClose ? '40px' : '0',
         }}>
-          <h3 style={{ fontSize: 30, fontWeight: 700, margin: 0 }}>Messages</h3>
-          
+          <h3 style={{ fontSize: 'clamp(20px, 4vw, 30px)', fontWeight: 700, margin: 0 }}>Messages</h3>
+
           {/* Buttons container */}
           <div style={{ display: 'flex', gap: 8 }}>
             {/* Add button */}
@@ -270,7 +251,7 @@ export default function Sidebar() {
             >
               +
             </button>
-            
+
             {/* Settings button with dropdown */}
             <div style={{ position: 'relative' }}>
               <button
@@ -294,7 +275,7 @@ export default function Sidebar() {
               >
                 ⚙️
               </button>
-              
+
               {/* Settings dropdown */}
               {showSettingsDropdown && (
                 <div style={{
@@ -326,34 +307,6 @@ export default function Sidebar() {
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
                     Reset Password
-                  </button>
-                  <button
-                    onClick={async () => {
-                      console.log('🔍 Testing backend endpoints...')
-                      try {
-                        const results = await testBackendEndpoints()
-                        console.log('🔍 Backend test results:', results)
-                        alert('Backend test completed. Check console for results.')
-                      } catch (error) {
-                        console.error('🔍 Backend test failed:', error)
-                        alert('Backend test failed. Check console for details.')
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: 'none',
-                      backgroundColor: 'transparent',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      color: '#333',
-                      borderBottom: '1px solid #eee'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    Test Backend
                   </button>
                   <button
                     onClick={handleLogout}
@@ -400,56 +353,56 @@ export default function Sidebar() {
           onChange={(e) => handleSearch(e.target.value)}
           style={{
             width: '100%',
-            padding: '12px 16px',
+            padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px)',
             marginBottom: 20,
             border: '1px solid #ddd',
             borderRadius: 20,
             outline: 'none',
             backgroundColor: '#fff',
             color: '#000',
-            fontSize: 14,
+            fontSize: 'clamp(12px, 3vw, 14px)',
             boxSizing: 'border-box',
           }}
         />
 
-        <div style={{ marginBottom: 20, display: 'flex', gap: 10 }}>
+        <div style={{ marginBottom: 20, display: 'flex', gap: 'clamp(8px, 2vw, 10px)' }}>
           <button
             onClick={() => {
-              console.log('🔍 Chats button clicked, setting showUserSearch to false')
               setShowUserSearch(false)
             }}
             style={{
-              padding: '8px 16px',
+              padding: 'clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px)',
               backgroundColor: !showUserSearch ? '#007AFF' : '#f0f0f0',
               color: !showUserSearch ? '#fff' : '#333',
               border: 'none',
               borderRadius: 20,
               cursor: 'pointer',
-              fontSize: 12,
+              fontSize: 'clamp(10px, 2.5vw, 12px)',
+              flex: 1,
             }}
           >
             Chats
           </button>
           <button
             onClick={() => {
-              console.log('🔍 Find Users button clicked, setting showUserSearch to true')
               setShowUserSearch(true)
             }}
             style={{
-              padding: '8px 16px',
+              padding: 'clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px)',
               backgroundColor: showUserSearch ? '#007AFF' : '#f0f0f0',
               color: showUserSearch ? '#fff' : '#333',
               border: 'none',
               borderRadius: 20,
               cursor: 'pointer',
-              fontSize: 12,
+              fontSize: 'clamp(10px, 2.5vw, 12px)',
+              flex: 1,
             }}
           >
             Find Users
           </button>
         </div>
 
-        
+
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading && !showUserSearch && !searchQuery.trim() ? (
             <div style={{ textAlign: 'center', padding: 20, color: '#666' }}>Loading chats...</div>
@@ -575,8 +528,8 @@ export default function Sidebar() {
                     onClick={() => handleCreateChat(item)}
                     style={{
                       display: 'flex',
-                      gap: 12,
-                      padding: '15px 10px',
+                      gap: 'clamp(8px, 2vw, 12px)',
+                      padding: 'clamp(10px, 2.5vw, 15px) clamp(8px, 2vw, 10px)',
                       alignItems: 'center',
                       cursor: 'pointer',
                       borderRadius: 8,
@@ -590,13 +543,13 @@ export default function Sidebar() {
                     <img
                       src={item.avatar || '/default-avatar.svg'}
                       alt={item.username || item.name || 'user'}
-                      style={{ width: 45, height: 45, borderRadius: '50%', objectFit: 'cover' }}
+                      style={{ width: 'clamp(35px, 8vw, 45px)', height: 'clamp(35px, 8vw, 45px)', borderRadius: '50%', objectFit: 'cover' }}
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 'bold', fontSize: 14, color: '#333', marginBottom: 4 }}>
+                      <div style={{ fontWeight: 'bold', fontSize: 'clamp(12px, 3vw, 14px)', color: '#333', marginBottom: 4 }}>
                         {item.username || item.name}
                       </div>
-                      <div style={{ fontSize: 12, color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {item.email || ''}
                       </div>
                     </div>
@@ -606,14 +559,17 @@ export default function Sidebar() {
                         handleCreateChat(item)
                       }}
                       style={{
-                        padding: '6px 12px',
+                        padding: 'clamp(2px, 1vw, 4px) clamp(4px, 1.5vw, 6px)',
                         backgroundColor: '#28a745',
                         color: '#fff',
                         border: 'none',
-                        borderRadius: 4,
+                        borderRadius: 3,
                         cursor: 'pointer',
-                        fontSize: 11,
+                        fontSize: 'clamp(8px, 2vw, 10px)',
                         marginLeft: 'auto',
+                        minWidth: 'clamp(25px, 6vw, 30px)',
+                        maxWidth: 'clamp(30px, 7vw, 35px)',
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       Chat
@@ -633,8 +589,8 @@ export default function Sidebar() {
                   onClick={() => handleUserClick(item)}
                   style={{
                     display: 'flex',
-                    gap: 12,
-                    padding: '15px 10px',
+                    gap: 'clamp(8px, 2vw, 12px)',
+                    padding: 'clamp(10px, 2.5vw, 15px) clamp(8px, 2vw, 10px)',
                     alignItems: 'center',
                     cursor: 'pointer',
                     borderRadius: 8,
@@ -654,13 +610,13 @@ export default function Sidebar() {
                   <img
                     src={item.avatar || '/default-avatar.svg'}
                     alt={item.name || item.username || 'chat'}
-                    style={{ width: 45, height: 45, borderRadius: '50%', objectFit: 'cover' }}
+                    style={{ width: 'clamp(35px, 8vw, 45px)', height: 'clamp(35px, 8vw, 45px)', borderRadius: '50%', objectFit: 'cover' }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
                         fontWeight: 'bold',
-                        fontSize: 14,
+                        fontSize: 'clamp(12px, 3vw, 14px)',
                         color: '#333',
                         marginBottom: 4,
                         whiteSpace: 'nowrap',
@@ -672,7 +628,7 @@ export default function Sidebar() {
                     </div>
                     <div
                       style={{
-                        fontSize: 12,
+                        fontSize: 'clamp(10px, 2.5vw, 12px)',
                         color: '#666',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -690,8 +646,8 @@ export default function Sidebar() {
                         setOpenChatOptionsId(prev => prev === id ? null : id)
                       }}
                       style={{
-                        width: 32,
-                        height: 32,
+                        width: 'clamp(28px, 6vw, 32px)',
+                        height: 'clamp(28px, 6vw, 32px)',
                         borderRadius: '50%',
                         border: 'none',
                         backgroundColor: '#f0f0f0',
@@ -700,8 +656,8 @@ export default function Sidebar() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 18,
-                        lineHeight: '32px',
+                        fontSize: 'clamp(14px, 3.5vw, 18px)',
+                        lineHeight: 'clamp(28px, 6vw, 32px)',
                         padding: 0
                       }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
@@ -793,7 +749,7 @@ export default function Sidebar() {
       </div>
 
       {/* User Search Modal */}
-        {showUserModal && (
+      {showUserModal && (
         <div style={{
           position: 'fixed',
           top: 0,

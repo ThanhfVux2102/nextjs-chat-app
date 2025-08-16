@@ -1,6 +1,6 @@
 'use client'
 
-export default function MessageBubble({ from, text, timestamp, isOwn }) {
+export default function MessageBubble({ from, text, timestamp, isOwn, senderLabel }) {
   const formatTime = (timestamp) => {
     if (!timestamp) return ''
     const date = new Date(timestamp)
@@ -24,6 +24,17 @@ export default function MessageBubble({ from, text, timestamp, isOwn }) {
         wordWrap: 'break-word',
         position: 'relative'
       }}>
+        {senderLabel && (
+          <div style={{
+            fontSize: '11px',
+            fontWeight: 600,
+            opacity: isOwn ? 0.9 : 0.7,
+            marginBottom: '6px',
+            textAlign: isOwn ? 'right' : 'left'
+          }}>
+            {senderLabel}
+          </div>
+        )}
         <div style={{ marginBottom: '4px' }}>
           {text}
         </div>

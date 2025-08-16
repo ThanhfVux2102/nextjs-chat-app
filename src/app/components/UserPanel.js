@@ -1,29 +1,29 @@
 // components/UserPanel.js
 import { useAuth } from '@/contexts/AuthContext'
 
-export default function UserPanel({ toggleRightPanel, isRightPanelOpen }) {
+export default function UserPanel({ toggleRightPanel, isRightPanelOpen, isMobile }) {
   const { user: currentUser } = useAuth()
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Header with toggle button */}
       <div style={{
-        padding: '15px 20px',
+        padding: 'clamp(10px, 2.5vw, 15px) clamp(15px, 3vw, 20px)',
         borderBottom: '1px solid #eee',
         backgroundColor: '#f8f9fa',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between'
       }}>
-        <div style={{ fontWeight: 'bold', fontSize: '16px' }}>
+        <div style={{ fontWeight: 'bold', fontSize: 'clamp(14px, 3.5vw, 16px)' }}>
           User Details
         </div>
-        {/* Toggle Right Panel Button */}
+        {/* Toggle Button - shows appropriate icon based on panel state */}
         <button
           onClick={toggleRightPanel}
           style={{
-            width: 36,
-            height: 36,
+            width: 'clamp(32px, 6vw, 36px)',
+            height: 'clamp(32px, 6vw, 36px)',
             borderRadius: '50%',
             border: 'none',
             backgroundColor: '#f0f0f0',
@@ -32,37 +32,37 @@ export default function UserPanel({ toggleRightPanel, isRightPanelOpen }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 16,
+            fontSize: 'clamp(14px, 3vw, 16px)',
             fontWeight: 'bold',
             transition: 'background-color 0.2s'
           }}
           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-          title={isRightPanelOpen ? 'Hide details' : 'Show details'}
+          title={isRightPanelOpen ? 'Hide user details' : 'Show user details'}
         >
-          i
+          {isRightPanelOpen ? '×' : (isMobile ? '👤' : 'ℹ️')}
         </button>
       </div>
 
       {/* Content */}
       <div style={{ 
-        padding: '30px 20px', 
+        padding: 'clamp(20px, 5vw, 30px) clamp(15px, 3vw, 20px)', 
         flex: 1, 
         display: 'flex', 
         flexDirection: 'column', 
         alignItems: 'center',
-        gap: '20px'
+        gap: 'clamp(15px, 3vw, 20px)'
       }}>
         {/* Default Avatar */}
         <div style={{
-          width: 100,
-          height: 100,
+          width: 'clamp(80px, 15vw, 100px)',
+          height: 'clamp(80px, 15vw, 100px)',
           borderRadius: '50%',
           backgroundColor: '#e0e0e0',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '40px',
+          fontSize: 'clamp(32px, 6vw, 40px)',
           color: '#666',
           border: '3px solid #f0f0f0'
         }}>
@@ -75,7 +75,7 @@ export default function UserPanel({ toggleRightPanel, isRightPanelOpen }) {
         }}>
           <h3 style={{
             margin: '0 0 5px 0',
-            fontSize: '20px',
+            fontSize: 'clamp(16px, 4vw, 20px)',
             fontWeight: '600',
             color: '#333'
           }}>
@@ -86,14 +86,14 @@ export default function UserPanel({ toggleRightPanel, isRightPanelOpen }) {
         {/* User Email */}
         <div style={{
           textAlign: 'center',
-          padding: '15px',
+          padding: 'clamp(12px, 3vw, 15px)',
           backgroundColor: '#f8f9fa',
           borderRadius: '8px',
           width: '100%',
-          maxWidth: '250px'
+          maxWidth: 'clamp(200px, 50vw, 250px)'
         }}>
           <div style={{
-            fontSize: '14px',
+            fontSize: 'clamp(12px, 3vw, 14px)',
             color: '#666',
             marginBottom: '5px'
           }}>

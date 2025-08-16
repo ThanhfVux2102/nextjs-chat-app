@@ -6,8 +6,8 @@ import MessageInput from './MessageInput'
 import MessageBubble from './MessageBubble'
 import { useEffect, useRef, useCallback } from 'react'
 
-export default function ChatBox({ toggleRightPanel, isRightPanelOpen }) {
-  const { currentChat, getMessagesForUser, addMessage, loading, loadMoreMessages } = useChat()
+export default function ChatBox({ toggleRightPanel, isRightPanelOpen, isMobile }) {
+  const { currentChat, getMessagesForUser, addMessage, loading, loadMoreMessages, isMessageFromCurrentUser, displayName, getDisplayForUser, deleteChat } = useChat()
   const { user: currentUser } = useAuth()
   const messagesEndRef = useRef(null)
   const scrollContainerRef = useRef(null)
@@ -50,66 +50,79 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen }) {
     addMessage(newMessage)
   }
 
+  // Compute a human-friendly sender label for each message
+  const getSenderLabel = (msg, isOwn) => {
+    if (isOwn) return 'You'
+
+    // Prefer explicit sender fields on the message
+    const fromMsg = msg.sender_username || msg.sender_name || msg.username || msg.name || msg.sender_email || msg.email
+    if (fromMsg) return fromMsg
+
+    // Derive sender id from various possible fields
+    const senderId = (
+      msg.from ??
+      msg.sender_id ??
+      msg.user_id ??
+      msg.senderId ??
+      msg.userId ??
+      msg.sender ??
+      msg.author_id ??
+      msg.authorId ??
+      null
+    )
+
+    // Try resolving via context members cache (group chats)
+    const resolved = getDisplayForUser?.(senderId, currentChat?.chat_id || currentChat?.id)
+    if (resolved) return resolved
+
+    // Detect if group chat (participants > 2)
+    const isGroup = Array.isArray(currentChat?.participants) && currentChat.participants.length > 2
+
+    if (isGroup) {
+      // Fallback to a short ID label for groups if we don't know the username
+      const shortId = String(senderId ?? '').slice(-4)
+      return shortId ? `User ${shortId}` : 'Member'
+    }
+
+    // Personal chat: use the counterpart info or displayName helper
+    const counterpart = currentChat?.other_user_username || currentChat?.username || currentChat?.other_user_email || currentChat?.email
+    if (counterpart) return counterpart
+
+    try {
+      if (typeof displayName === 'function') return displayName(currentChat)
+    } catch (_) { }
+    return 'Unknown'
+  }
+
+  const handleDeleteCurrentChat = async () => {
+    if (!currentChat) return
+    const id = currentChat.chat_id || currentChat.id
+    const ok = confirm('Delete this chat? This cannot be undone.')
+    if (!ok) return
+    await deleteChat(id)
+  }
+
   const messages = currentChat ? getMessagesForUser(currentChat.chat_id || currentChat.id) : []
-  console.log('🔍 ChatBox Debug:')
-  console.log('- Current Chat ID:', currentChat?.chat_id || currentChat?.id)
-  console.log('- Current User ID:', currentUser?.id)
-  console.log('- All Messages:', messages)
-  console.log('- Messages Count:', messages.length)
-  console.log('- Messages Details:', messages.map(msg => ({
-    id: msg.id,
-    from: msg.from,
-    text: msg.text,
-    chat_id: msg.chat_id
-  })))
 
   if (!currentChat) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
         height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
         color: '#666',
         position: 'relative'
       }}>
-        <div style={{ fontSize: '24px', marginBottom: '10px' }}>
+        <div style={{ fontSize: 'clamp(18px, 4vw, 24px)', marginBottom: '10px', textAlign: 'center' }}>
           👋 Welcome to F.E Chat!
         </div>
-        <div style={{ fontSize: '16px', textAlign: 'center' }}>
+        <div style={{ fontSize: 'clamp(14px, 3vw, 16px)', textAlign: 'center', padding: '0 20px' }}>
           Select a chat from the sidebar to start messaging
         </div>
-        
-        {/* Toggle Right Panel Button - only show when panel is closed */}
-        {!isRightPanelOpen && (
-          <button
-            onClick={toggleRightPanel}
-            style={{
-              position: 'absolute',
-              top: '20px',
-              right: '20px',
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              border: 'none',
-              backgroundColor: '#f0f0f0',
-              color: '#333',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 16,
-              fontWeight: 'bold',
-              transition: 'background-color 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-            title="Show details"
-          >
-            i
-          </button>
-        )}
+
+
       </div>
     )
   }
@@ -118,107 +131,85 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Chat Header */}
       <div style={{
-        padding: '15px 20px',
+        padding: 'clamp(10px, 2.5vw, 15px) clamp(15px, 3vw, 20px)',
         borderBottom: '1px solid #eee',
         backgroundColor: '#f8f9fa',
         display: 'flex',
         alignItems: 'center',
-        gap: '12px'
+        gap: 'clamp(8px, 2vw, 12px)'
       }}>
-        <img 
-          src={currentChat.avatar || '/default-avatar.svg'} 
-          style={{ 
-            width: 40, 
-            height: 40, 
+        <img
+          src={currentChat.avatar || '/default-avatar.svg'}
+          style={{
+            width: 'clamp(32px, 7vw, 40px)',
+            height: 'clamp(32px, 7vw, 40px)',
             borderRadius: '50%',
             objectFit: 'cover'
-          }} 
+          }}
           alt={currentChat.name || currentChat.username}
         />
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 'bold', fontSize: '16px' }}>
+          <div style={{ fontWeight: 'bold', fontSize: 'clamp(14px, 3.5vw, 16px)' }}>
             {currentChat.name || currentChat.username}
           </div>
-          <div style={{ fontSize: '12px', color: currentChat.online ? '#4CAF50' : '#666' }}>
-            {currentChat.online ? '● Online' : '○ Offline'}
-          </div>
         </div>
+        <button
+          title="Delete chat"
+          onClick={handleDeleteCurrentChat}
+          style={{
+            width: 'clamp(28px, 6vw, 32px)',
+            height: 'clamp(28px, 6vw, 32px)',
+            borderRadius: '50%',
+            border: 'none',
+            backgroundColor: '#f0f0f0',
+            color: '#d32f2f',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 'clamp(14px, 3.5vw, 16px)'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#ffeaea'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+        >
+          🗑️
+        </button>
         {loading && (
           <div style={{ fontSize: '12px', color: '#666', marginRight: 10 }}>
             Loading...
           </div>
         )}
-        {/* Toggle Right Panel Button - only show when panel is closed */}
-        {!isRightPanelOpen && (
-          <button
-            onClick={toggleRightPanel}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              border: 'none',
-              backgroundColor: '#f0f0f0',
-              color: '#333',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 16,
-              fontWeight: 'bold',
-              transition: 'background-color 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-            title="Show details"
-          >
-            i
-          </button>
-        )}
+
       </div>
-      <div ref={scrollContainerRef} onScroll={handleScroll} style={{ 
-        flex: 1, 
-        overflowY: 'auto', 
-        padding: '20px',
+      <div ref={scrollContainerRef} onScroll={handleScroll} style={{
+        flex: 1,
+        overflowY: 'auto',
+        padding: 'clamp(15px, 3vw, 20px)',
         minHeight: 0,
         backgroundColor: '#f5f5f5'
       }}>
         {messages.length > 0 ? (
           (() => {
-            console.log('🔍 Rendering messages:', messages.length, 'messages');
-            console.log('🔍 Messages array:', messages);
-            
             return messages.map((msg, i) => {
-              const msgFromStr = String(msg.from);
-              const currentUserIdStr = String(currentUser?.id);
-              const isOwn = msgFromStr === currentUserIdStr;
-              
-              console.log('🔍 MessageBubble Debug:', {
-                messageId: msg.id,
-                msgFrom: msg.from,
-                msgFromType: typeof msg.from,
-                msgFromStr: msgFromStr,
-                currentUserId: currentUser?.id,
-                currentUserIdType: typeof currentUser?.id,
-                currentUserIdStr: currentUserIdStr,
-                isOwn: isOwn,
-                text: msg.text
-              });
-              
+              const isOwn = isMessageFromCurrentUser?.(msg.from) ?? (String(msg.from) === String(currentUser?.id));
+              const senderLabel = getSenderLabel(msg, isOwn);
+
               return (
-                <MessageBubble 
-                  key={msg.id || i} 
-                  from={msg.from} 
+                <MessageBubble
+                  key={msg.id || i}
+                  from={msg.from}
                   text={msg.text}
                   timestamp={msg.timestamp}
                   isOwn={isOwn}
+                  senderLabel={senderLabel}
                 />
               );
             });
           })()
         ) : (
-          <div style={{ 
-            textAlign: 'center', 
-            color: '#666', 
+          <div style={{
+            textAlign: 'center',
+            color: '#666',
             marginTop: '50px',
             fontSize: '14px'
           }}>

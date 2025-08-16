@@ -41,3 +41,9 @@ button {
   border: none;
   cursor: pointer;
 }
+
+/* Global keyframes used by ToastProvider */
+@keyframes toast-pop-in {
+  from { transform: scale(0.98); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}

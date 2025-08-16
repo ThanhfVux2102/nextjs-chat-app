@@ -1,16 +1,34 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://chat-app-backend-3vsf.onrender.com';
 
+function getAuthToken() {
+  try {
+    return localStorage.getItem('authToken') || null;
+  } catch {
+    return null;
+  }
+}
+
+function defaultHeaders(extra = {}) {
+  const token = getAuthToken();
+  const headers = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    ...extra,
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
 
 export async function login(email, password) {
   const res = await fetch(`${BASE_URL}/api/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: defaultHeaders({ 'Content-Type': 'application/json' }),
     credentials: 'include',
     body: JSON.stringify({ email, password }),
   });
 
   const text = await res.text();
-  console.log('Raw response:', text);
 
   let data = {};
   try {
@@ -21,8 +39,17 @@ export async function login(email, password) {
 
   if (!res.ok || data.error || data.detail) {
     const msg = data.detail || data.message || data.error || `Status ${res.status}`;
-    throw new Error(msg);
+    const error = new Error(msg);
+    error.status = res.status;
+    error.code = data.code || res.status;
+    throw error;
   }
+
+  // Persist any bearer token fields for cross-site auth fallback
+  try {
+    const token = data.token || data.access_token || data.jwt || (data.user && data.user.token);
+    if (token) localStorage.setItem('authToken', token);
+  } catch { }
 
   return data;
 }
@@ -31,26 +58,43 @@ export async function login(email, password) {
 export async function register(email, username, password) {
   const res = await fetch(`${BASE_URL}/api/auth/register`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: defaultHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ email, username, password }),
     credentials: 'include',
   });
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.detail || 'Registration failed');
+  const text = await res.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (e) {
+    // Non-JSON response
+    if (!res.ok) {
+      const error = new Error(text || `Status ${res.status}`);
+      error.status = res.status;
+      error.code = res.status;
+      throw error;
+    }
+    // On success with non-JSON (unlikely), return an empty object
+    return {};
   }
 
-  return await res.json();
+  if (!res.ok || data.error || data.detail) {
+    const msg = data.detail || data.message || data.error || `Status ${res.status}`;
+    const error = new Error(msg);
+    error.status = res.status;
+    error.code = data.code || res.status;
+    throw error;
+  }
+
+  return data;
 }
 
 
 export async function forgotPassword(email) {
   const res = await fetch(`${BASE_URL}/api/auth/forgot-password`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: defaultHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ email }),
   })
 
@@ -63,26 +107,17 @@ export async function forgotPassword(email) {
 }
 
 export async function resetPassword(token, newPassword, confirmPassword) {
- const payload = {
+  const payload = {
     new_password: newPassword,
     confirm_password: confirmPassword,
   };
 
 
-  let res = await fetch(`${BASE_URL}/api/auth/reset-password/${encodeURIComponent(token)}`, {
+  const res = await fetch(`${BASE_URL}/api/auth/reset-password?token=${encodeURIComponent(token)}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: defaultHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   });
-
- 
-  if (res.status === 404) {
-    res = await fetch(`${BASE_URL}/api/auth/reset-password?token=${encodeURIComponent(token)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-  }
 
   if (!res.ok) {
     const error = await res.json();
@@ -96,10 +131,7 @@ export async function checkSession() {
     const res = await fetch(`${BASE_URL}/api/auth/me`, {
       method: 'GET',
       credentials: 'include',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      }
+      headers: defaultHeaders(),
     });
 
     if (res.ok) {
@@ -114,47 +146,63 @@ export async function checkSession() {
 
 
 export async function getChatList(cursor = null) {
-  const url = cursor 
+  const url = cursor
     ? `${BASE_URL}/api/chat/me/view?cursor=${encodeURIComponent(cursor)}`
     : `${BASE_URL}/api/chat/me/view`;
-  
-  console.log('🔍 API: getChatList called with URL:', url);
-  
+
+
+
   const res = await fetch(url, {
     method: 'GET',
     credentials: 'include',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    }
+    headers: defaultHeaders(),
   });
 
-  console.log('🔍 API: getChatList response status:', res.status);
+
 
   if (!res.ok) {
     const errorText = await res.text();
-    console.error('🔍 API: getChatList failed with error text:', errorText);
+    console.error('❌ API: getChatList failed with error text:', errorText);
     let errorData = {};
     try {
       errorData = JSON.parse(errorText);
-    } catch {}
+    } catch { }
     throw new Error(errorData.detail || errorData.message || `HTTP ${res.status}: ${res.statusText}`);
   }
 
   const data = await res.json();
-  console.log('🔍 API: getChatList raw response:', data);
-  
-  let chatsRaw = Array.isArray(data.chats) ? data.chats : (Array.isArray(data.items) ? data.items : []);
-  console.log('🔍 API: getChatList chatsRaw:', chatsRaw);
-  
-  const chats = chatsRaw.map((item) => ({
-    ...item,
-    chat_id: item.chat_id || item.id,
-    name: item.name || item.chat_name || item.username || 'Unknown',
-    last_message: item.last_message || item.lastMessage || '',
-  }));
 
-  console.log('🔍 API: getChatList processed chats:', chats);
+  let chatsRaw = Array.isArray(data.chats) ? data.chats : (Array.isArray(data.items) ? data.items : []);
+
+  const chats = chatsRaw.map((item) => {
+    // Detect group chats using multiple indicators since backend doesn't send type
+    const participantCount = Array.isArray(item.participants) ? item.participants.length : 0
+    const isGroupByParticipants = participantCount >= 3 // 3+ participants = definitely group
+    const isGroupByName = item.name && !item.username && !item.email // Groups have name but no username/email
+    const isGroupByType = item.type === 'group' || item.chat_type === 'group'
+    const isGroupByField = item.is_group === true || item.isGroup === true
+
+    // More lenient detection: if has custom name (not username) and 2+ participants, likely a group
+    const isGroupByNameAndCount = item.name && !item.username && participantCount >= 2 &&
+      item.name !== item.email && // name is not just an email
+      item.name.length > 2 // has meaningful name
+
+    const isGroup = isGroupByType || isGroupByField || isGroupByParticipants || isGroupByNameAndCount
+
+
+
+    return {
+      ...item,
+      chat_id: item.chat_id || item.id,
+      name: item.name || item.chat_name || item.username || (isGroup ? 'Group Chat' : 'Unknown User'),
+      last_message: item.last_message || item.lastMessage || '',
+      type: isGroup ? 'group' : 'personal', // Set the type based on our detection
+      chat_type: isGroup ? 'group' : 'personal',
+      isGroup: isGroup,
+    }
+  });
+
+
 
   return {
     chats,
@@ -164,7 +212,7 @@ export async function getChatList(cursor = null) {
 
 
 export async function getMessageHistory(chatId = null, cursor = null, limit = 50) {
-  
+
   const possibleEndpoints = [
     `/api/message/history`,
     `/api/messages/history`,
@@ -172,110 +220,129 @@ export async function getMessageHistory(chatId = null, cursor = null, limit = 50
     `/api/messages`,
     `/api/chat/messages`
   ];
-  
+
   let lastError = null;
-  
+
   for (const endpoint of possibleEndpoints) {
     try {
       let url = `${BASE_URL}${endpoint}`;
       const params = new URLSearchParams();
-      
+
       if (chatId && !endpoint.includes('${chatId}')) {
         params.append('chat_id', chatId);
       }
-      
+
       if (cursor) {
         params.append('cursor', cursor);
       }
       if (limit) {
         params.append('limit', String(limit));
       }
-      
+
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
-      
-      console.log('🔍 API: getMessageHistory trying endpoint:', url);
-      
+
+
+
       const res = await fetch(url, {
         method: 'GET',
         credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        }
+        headers: defaultHeaders(),
       });
 
-      console.log('🔍 API: getMessageHistory response status:', res.status);
+
 
       if (res.ok) {
         const data = await res.json();
-        console.log('🔍 API: getMessageHistory successful with endpoint:', endpoint, {
-          messagesCount: data.messages?.length || 0,
-          chatId,
-          cursor
-        });
         return data;
       } else {
         const errorText = await res.text();
-        console.log('🔍 API: getMessageHistory failed with endpoint:', endpoint, 'Status:', res.status, 'Error:', errorText);
         lastError = new Error(`${endpoint} failed: ${res.status} - ${errorText}`);
       }
     } catch (error) {
-      console.log('🔍 API: getMessageHistory error with endpoint:', endpoint, error.message);
+
       lastError = error;
     }
   }
-  
+
   // If all endpoints failed, throw the last error
   console.error('🔍 API: All message history endpoints failed');
   throw lastError || new Error('Failed to fetch message history - no working endpoint found');
 }
 
 
-export async function createPersonalChat(userId) {
-  console.log('🔍 API: createPersonalChat called with userId:', userId)
-  console.log('🔍 API: Making request to:', `${BASE_URL}/api/chat/create/personal`)
-  console.log('🔍 API: Request body:', { user_id: userId })
-  
-  const res = await fetch(`${BASE_URL}/api/chat/create/personal`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ user_id: userId }),
-  });
+export async function createPersonalChat(participantIds) {
 
-  console.log('🔍 API: createPersonalChat response status:', res.status)
-  console.log('🔍 API: createPersonalChat response ok:', res.ok)
+  const normalized = (participantIds || []).map((id) => String(id)).filter(Boolean)
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error('🔍 API: createPersonalChat failed with error text:', errorText)
-    let errorData = {};
-    try {
-      errorData = JSON.parse(errorText);
-      console.error('🔍 API: Parsed error data:', errorData)
-    } catch (e) {
-      console.error('🔍 API: Could not parse error as JSON:', e)
-    }
-    
-    // For 422 errors, the chat might already exist - let's try to find it
-    if (res.status === 422) {
-      console.log('🔍 API: 422 error - chat might already exist, trying to find existing chat')
-      // We'll handle this in the ChatContext
-      throw new Error('CHAT_ALREADY_EXISTS')
-    }
-    
-    throw new Error(errorData.detail || errorData.message || `Failed to create personal chat (${res.status})`);
+
+
+  // Validate that we have exactly 2 participants
+  if (normalized.length !== 2) {
+    throw new Error(`Personal chat requires exactly 2 participants, got ${normalized.length}: [${normalized.join(', ')}]`)
   }
 
-  const data = await res.json();
-  console.log('🔍 API: createPersonalChat successful, data:', data)
-  return data;
+  // Validate that participants are not the same
+  if (normalized[0] === normalized[1]) {
+    throw new Error('Cannot create a personal chat with yourself')
+  }
+
+  // Remove any undefined values and ensure both IDs are valid
+  const validParticipants = normalized.filter(id => id && id !== 'undefined' && id !== 'null')
+
+  if (validParticipants.length !== 2) {
+    throw new Error(`Invalid participant IDs: [${normalized.join(', ')}]. Got valid: [${validParticipants.join(', ')}]`)
+  }
+
+  // Include both user IDs in participants as requested by user
+  const payload = {
+    chat_type: 'personal',
+    participants: validParticipants
+  }
+
+
+
+  // Log the request body that will be sent to the server
+  const requestBody = JSON.stringify(payload)
+
+  const res = await fetch(`${BASE_URL}/api/chat/create/personal`, {
+    method: 'POST',
+    headers: defaultHeaders({ 'Content-Type': 'application/json' }),
+    credentials: 'include',
+    body: requestBody,
+  })
+
+
+
+  if (res.ok) {
+    const text = await res.text()
+    // API docs say response is a string (chat ID)
+    return text.trim()
+  }
+
+  const errorText = await res.text()
+  let errorData = {}
+  try { errorData = JSON.parse(errorText) } catch { }
+  const code = res.status
+  let msg = errorData.detail || errorData.message || errorText || `HTTP ${code}`
+  if (Array.isArray(errorData?.detail)) {
+    msg = errorData.detail
+      .map((d) => {
+        const loc = Array.isArray(d.loc) ? d.loc.join('.') : (d.loc || '')
+        const m = d.msg || d.message || JSON.stringify(d)
+        return loc ? `${loc}: ${m}` : m
+      })
+      .join('\n')
+  }
+  if (typeof msg !== 'string') {
+    try { msg = JSON.stringify(msg) } catch { msg = String(msg) }
+  }
+  throw new Error(msg)
 }
 
 export async function createGroupChat(participantIds, name, adminIds = []) {
-  console.log('🔍 API: createGroupChat called with', { participantIds, name, adminIds })
+
   const payload = {
     chat_type: 'group',
     participants: (participantIds || []).map((id) => String(id)),
@@ -285,18 +352,18 @@ export async function createGroupChat(participantIds, name, adminIds = []) {
 
   const res = await fetch(`${BASE_URL}/api/chat/create/group`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: defaultHeaders({ 'Content-Type': 'application/json' }),
     credentials: 'include',
     body: JSON.stringify(payload),
   })
 
-  console.log('🔍 API: createGroupChat response status:', res.status)
+
 
   if (!res.ok) {
     const errorText = await res.text()
-    console.error('🔍 API: createGroupChat failed with error text:', errorText)
+    console.error('❌ API: createGroupChat failed with error text:', errorText)
     let errorData = {}
-    try { errorData = JSON.parse(errorText) } catch {}
+    try { errorData = JSON.parse(errorText) } catch { }
 
     // Format fastapi-style validation errors for readability
     let message = errorData.message || errorData.detail || ''
@@ -316,61 +383,84 @@ export async function createGroupChat(participantIds, name, adminIds = []) {
   }
 
   const data = await res.json()
-  console.log('🔍 API: createGroupChat successful, data:', data)
   return data
 }
 
 export async function deleteChat(chatId) {
-  const endpoints = [
-    { method: 'DELETE', url: `${BASE_URL}/api/chat/${encodeURIComponent(chatId)}`, body: null },
-    { method: 'DELETE', url: `${BASE_URL}/api/chats/${encodeURIComponent(chatId)}`, body: null },
-    { method: 'DELETE', url: `${BASE_URL}/api/chat/delete/${encodeURIComponent(chatId)}`, body: null },
-    { method: 'POST', url: `${BASE_URL}/api/chat/delete`, body: { chat_id: String(chatId) } },
-  ]
+  const id = encodeURIComponent(chatId)
+  const url = `${BASE_URL}/api/chat/${id}`
 
-  let lastError = null
-  for (const ep of endpoints) {
+  const res = await fetch(url, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: defaultHeaders(),
+  })
+
+  if (res.ok) {
+    // Some APIs return empty body on DELETE
     try {
-      const res = await fetch(ep.url, {
-        method: ep.method,
-        credentials: 'include',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: ep.body ? JSON.stringify(ep.body) : null,
-      })
-
-      if (res.ok) {
-        // Some APIs return empty body on DELETE
-        try {
-          const data = await res.json()
-          return data || { ok: true }
-        } catch {
-          return { ok: true }
-        }
-      } else {
-        const text = await res.text()
-        lastError = new Error(text || `Failed to delete chat (${res.status})`)
-      }
-    } catch (e) {
-      lastError = e
+      const data = await res.json()
+      return data || { ok: true }
+    } catch {
+      return { ok: true }
     }
   }
-  throw lastError || new Error('Failed to delete chat')
+
+  const text = await res.text()
+  throw new Error(text || `Failed to delete chat (${res.status})`)
+}
+
+// Fetch members of a chat (group) from a single canonical endpoint: GET /api/chat/{chatId}/members
+export async function getChatMembers(chatId) {
+  if (!chatId) return { items: [] }
+
+  const id = encodeURIComponent(chatId)
+  const url = `${BASE_URL}/api/chat/${id}/members`
+
+  const res = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+    headers: defaultHeaders(),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`GET /api/chat/${id}/members failed: ${res.status} ${res.statusText}: ${text}`)
+  }
+
+  const data = await res.json()
+
+  // Expected: array of member user IDs, e.g. ["id1","id2"].
+  // Also support an array of user objects (id/username/etc) for forward compatibility.
+  const list = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : [])
+
+  const normalized = list.map((u) => {
+    if (u && (typeof u === 'string' || typeof u === 'number')) {
+      return { id: String(u) }
+    }
+    const backendId = u?.id ?? u?.user_id ?? u?._id ?? u?.uid ?? u?.uuid ?? null
+    return {
+      ...u,
+      id: backendId ? String(backendId) : undefined,
+      username: u?.username || u?.name || u?.fullname || u?.displayName || u?.email,
+      email: u?.email || u?.mail || '',
+      avatar: u?.avatar || u?.photo || u?.picture || u?.image || '/default-avatar.svg',
+    }
+  }).filter(Boolean)
+
+  return { items: normalized }
 }
 
 export async function getCurrentUser() {
-  console.log('🔍 API: Getting current user from /api/auth/me')
-  
+
+
   const res = await fetch(`${BASE_URL}/api/auth/me`, {
     method: 'GET',
     credentials: 'include',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    }
+    headers: defaultHeaders(),
   });
 
-  console.log('🔍 API: getCurrentUser response status:', res.status)
-  console.log('🔍 API: getCurrentUser response ok:', res.ok)
+
 
   if (!res.ok) {
     const errorText = await res.text();
@@ -378,92 +468,53 @@ export async function getCurrentUser() {
     let errorData = {};
     try {
       errorData = JSON.parse(errorText);
-    } catch {}
+    } catch { }
     throw new Error(errorData.detail || errorData.message || 'Failed to get current user');
   }
 
   const data = await res.json();
-  console.log('🔍 API: getCurrentUser successful, data:', data)
   return data;
 }
 
 export async function searchUsers(query) {
-  console.log('🔍 API: searchUsers called with query:', query)
-  console.log('🔍 API: Making request to:', `${BASE_URL}/api/auth/users?q=${encodeURIComponent(query)}`)
-  
-  const res = await fetch(`${BASE_URL}/api/auth/users?q=${encodeURIComponent(query)}`, {
+  const hasQuery = query !== undefined && query !== null && String(query).trim() !== ''
+  const url = `${BASE_URL}/api/auth/users${hasQuery ? `?q=${encodeURIComponent(query)}` : ''}`
+
+  const res = await fetch(url, {
     method: 'GET',
     credentials: 'include',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    }
-  });
-
-  console.log('🔍 API: Response status:', res.status)
-  console.log('🔍 API: Response ok:', res.ok)
+    headers: defaultHeaders(),
+  })
 
   if (!res.ok) {
-    const errorText = await res.text();
-    console.error('🔍 API: Search failed with error text:', errorText)
-    let errorData = {};
-    try {
-      errorData = JSON.parse(errorText);
-    } catch {}
-    throw new Error(errorData.detail || errorData.message || 'Failed to search users');
-  }
-
-  const data = await res.json();
-  console.log('🔍 API: Search successful, data:', data)
-  return data;
-}
-
-// Test function to check backend connectivity and available endpoints
-export async function testBackendEndpoints() {
-  console.log('🔍 API: Testing backend connectivity...')
-  
-  const testEndpoints = [
-    '/api/auth/me',
-    '/api/chat/me/view',
-    '/api/message/history',
-    '/api/messages/history',
-    '/api/messages',
-    '/api/chat/messages'
-  ];
-  
-  const results = {};
-  
-  for (const endpoint of testEndpoints) {
-    try {
-      const url = `${BASE_URL}${endpoint}`;
-      console.log('🔍 API: Testing endpoint:', url);
-      
-      const res = await fetch(url, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      results[endpoint] = {
-        status: res.status,
-        ok: res.ok,
-        statusText: res.statusText
-      };
-      
-      console.log('🔍 API: Endpoint result:', endpoint, results[endpoint]);
-      
-    } catch (error) {
-      results[endpoint] = {
-        error: error.message,
-        status: 'ERROR'
-      };
-      console.log('🔍 API: Endpoint error:', endpoint, error.message);
+    if (res.status === 401) {
+      const authError = new Error('Authentication expired. Please log in again.')
+      authError.status = 401
+      throw authError
     }
+    const errorText = await res.text()
+    throw new Error(`/api/auth/users -> ${res.status} ${res.statusText}: ${errorText}`)
   }
-  
-  console.log('🔍 API: All endpoint test results:', results);
-  return results;
+
+  const data = await res.json()
+  const list = Array.isArray(data) ? data : (data.items || data.users || data.data || data.results || [])
+
+  if (!Array.isArray(list)) {
+    throw new Error('Unexpected user search response shape')
+  }
+
+  // Normalize shape for UI usage
+  const normalized = list.map((u) => {
+    const backendId = u.id ?? u.user_id ?? u._id ?? u.uid ?? u.uuid ?? null
+    return {
+      ...u,
+      id: backendId, // use only real backend ID; do NOT fall back to username/email
+      username: u.username || u.name || u.fullname || u.displayName || u.email || String(backendId || ''),
+      email: u.email || u.mail || '',
+      avatar: u.avatar || u.photo || u.picture || u.image || '/default-avatar.svg',
+    }
+  })
+
+  return { items: normalized }
 }
+
