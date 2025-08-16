@@ -91,20 +91,11 @@ export async function resetPassword(token, newPassword, confirmPassword) {
   };
 
 
-  let res = await fetch(`${BASE_URL}/api/auth/reset-password/${encodeURIComponent(token)}`, {
+  const res = await fetch(`${BASE_URL}/api/auth/reset-password?token=${encodeURIComponent(token)}`, {
     method: 'POST',
     headers: defaultHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   });
-
-
-  if (res.status === 404) {
-    res = await fetch(`${BASE_URL}/api/auth/reset-password?token=${encodeURIComponent(token)}`, {
-      method: 'POST',
-      headers: defaultHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(payload),
-    });
-  }
 
   if (!res.ok) {
     const error = await res.json();
