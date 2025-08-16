@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useChat } from '@/contexts/ChatContext'
 import { useAuth } from '@/contexts/AuthContext'
-import websocketService from '@/lib/websocket'
 import { useRouter } from 'next/navigation'
 
 export default function Sidebar({ onClose }) {
@@ -18,7 +17,6 @@ export default function Sidebar({ onClose }) {
     createGroup,
     deleteChat,
     currentChat,
-    testBackendEndpoints,
   } = useChat()
 
   const { user: currentUser, logout } = useAuth()
@@ -344,65 +342,6 @@ export default function Sidebar({ onClose }) {
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
                     Reset Password
-                  </button>
-                  <button
-                    onClick={() => {
-                      try {
-                        const statuses = websocketService.getConnectionStatus()
-                        const currentId = currentUser?.id ?? currentUser?.user_id ?? currentUser?._id
-                        const status = currentId ? (statuses?.[currentId] || statuses?.[String(currentId)]) : null
-                        if (status) {
-                          alert(`WebSocket Connected: ${status.isConnected ? 'Yes' : 'No'}\nReconnect Attempts: ${status.reconnectAttempts}`)
-                        } else if (statuses && Object.keys(statuses).length > 0) {
-                          alert(`WebSocket Instances: ${Object.keys(statuses).length}`)
-                        } else {
-                          alert('No active WebSocket connections')
-                        }
-                      } catch (e) {
-                        alert('Unable to get WebSocket status')
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: 'none',
-                      backgroundColor: 'transparent',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      color: '#333',
-                      borderBottom: '1px solid #eee'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    Check WebSocket
-                  </button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const results = await testBackendEndpoints()
-                        alert('Backend test completed. Check console for results.')
-                      } catch (error) {
-                        console.error('🔍 Backend test failed:', error)
-                        alert('Backend test failed. Check console for details.')
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: 'none',
-                      backgroundColor: 'transparent',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      color: '#333',
-                      borderBottom: '1px solid #eee'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    Test Backend
                   </button>
                   <button
                     onClick={handleLogout}

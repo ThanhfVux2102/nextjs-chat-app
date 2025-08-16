@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect } from 'react'
-import { getChatList, getMessageHistory, createPersonalChat, createGroupChat as createGroupChatAPI, deleteChat as deleteChatAPI, searchUsers as searchUsersAPI, checkSession, testBackendEndpoints, getChatMembers } from '@/lib/api'
+import { getChatList, getMessageHistory, createPersonalChat, createGroupChat as createGroupChatAPI, deleteChat as deleteChatAPI, searchUsers as searchUsersAPI, checkSession, getChatMembers } from '@/lib/api'
 import websocketService from '@/lib/websocket'
 import { useAuth } from './AuthContext'
 
@@ -1032,7 +1032,6 @@ export function ChatProvider({ children }) {
     setMessages,
     setUsers,
     setChats,
-    testBackendEndpoints, // Add the test function to the context
     displayName, // Add the displayName helper function
     // Members helpers
     chatMembersByChatId,

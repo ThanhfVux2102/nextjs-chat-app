@@ -365,40 +365,27 @@ export async function createGroupChat(participantIds, name, adminIds = []) {
 }
 
 export async function deleteChat(chatId) {
-  const endpoints = [
-    { method: 'DELETE', url: `${BASE_URL}/api/chat/${encodeURIComponent(chatId)}`, body: null },
-    { method: 'DELETE', url: `${BASE_URL}/api/chats/${encodeURIComponent(chatId)}`, body: null },
-    { method: 'DELETE', url: `${BASE_URL}/api/chat/delete/${encodeURIComponent(chatId)}`, body: null },
-    { method: 'POST', url: `${BASE_URL}/api/chat/delete`, body: { chat_id: String(chatId) } },
-  ]
+  const id = encodeURIComponent(chatId)
+  const url = `${BASE_URL}/api/chat/${id}`
 
-  let lastError = null
-  for (const ep of endpoints) {
+  const res = await fetch(url, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: defaultHeaders(),
+  })
+
+  if (res.ok) {
+    // Some APIs return empty body on DELETE
     try {
-      const res = await fetch(ep.url, {
-        method: ep.method,
-        credentials: 'include',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: ep.body ? JSON.stringify(ep.body) : null,
-      })
-
-      if (res.ok) {
-        // Some APIs return empty body on DELETE
-        try {
-          const data = await res.json()
-          return data || { ok: true }
-        } catch {
-          return { ok: true }
-        }
-      } else {
-        const text = await res.text()
-        lastError = new Error(text || `Failed to delete chat (${res.status})`)
-      }
-    } catch (e) {
-      lastError = e
+      const data = await res.json()
+      return data || { ok: true }
+    } catch {
+      return { ok: true }
     }
   }
-  throw lastError || new Error('Failed to delete chat')
+
+  const text = await res.text()
+  throw new Error(text || `Failed to delete chat (${res.status})`)
 }
 
 // Fetch members of a chat (group) from a single canonical endpoint: GET /api/chat/{chatId}/members
@@ -468,123 +455,44 @@ export async function getCurrentUser() {
 }
 
 export async function searchUsers(query) {
+  const hasQuery = query !== undefined && query !== null && String(query).trim() !== ''
+  const url = `${BASE_URL}/api/auth/users${hasQuery ? `?q=${encodeURIComponent(query)}` : ''}`
 
+  const res = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+    headers: defaultHeaders(),
+  })
 
-  const candidates = [
-    { path: '/api/auth/users', param: 'q' },
-    { path: '/api/auth/users/search', param: 'q' },
-    { path: '/api/users', param: 'q' },
-    { path: '/api/users/search', param: 'q' },
-    { path: '/api/auth/user/search', param: 'q' },
-    { path: '/api/auth/users', param: 'username' },
-    { path: '/api/auth/users', param: 'email' },
-  ]
-
-  let lastError = null
-  for (const c of candidates) {
-    try {
-      const url = `${BASE_URL}${c.path}?${encodeURIComponent(c.param)}=${encodeURIComponent(query)}`
-      const res = await fetch(url, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        }
-      })
-
-
-
-      if (!res.ok) {
-        const errorText = await res.text()
-
-        // If any endpoint returns 401, it means authentication failed
-        if (res.status === 401) {
-          const authError = new Error('Authentication expired. Please log in again.')
-          authError.status = 401
-          throw authError
-        }
-
-        lastError = new Error(`${c.path} -> ${res.status} ${res.statusText}: ${errorText}`)
-        continue
-      }
-
-      const data = await res.json()
-
-      const list = Array.isArray(data)
-        ? data
-        : (data.items || data.users || data.data || data.results || [])
-
-      if (!Array.isArray(list)) {
-        lastError = new Error('Unexpected user search response shape')
-        continue
-      }
-
-      // Normalize shape for UI usage
-      const normalized = list.map((u) => {
-        const backendId = u.id ?? u.user_id ?? u._id ?? u.uid ?? u.uuid ?? null
-        return {
-          ...u,
-          id: backendId, // use only real backend ID; do NOT fall back to username/email
-          username: u.username || u.name || u.fullname || u.displayName || u.email || String(backendId || ''),
-          email: u.email || u.mail || '',
-          avatar: u.avatar || u.photo || u.picture || u.image || '/default-avatar.svg',
-        }
-      })
-
-      return { items: normalized }
-    } catch (err) {
-      console.warn('🔍 API: searchUsers endpoint failed:', c.path, err?.message)
-      lastError = err
+  if (!res.ok) {
+    if (res.status === 401) {
+      const authError = new Error('Authentication expired. Please log in again.')
+      authError.status = 401
+      throw authError
     }
+    const errorText = await res.text()
+    throw new Error(`/api/auth/users -> ${res.status} ${res.statusText}: ${errorText}`)
   }
 
-  if (lastError) throw lastError
-  return { items: [] }
-}
+  const data = await res.json()
+  const list = Array.isArray(data) ? data : (data.items || data.users || data.data || data.results || [])
 
-// Test function to check backend connectivity and available endpoints
-export async function testBackendEndpoints() {
-
-
-  const testEndpoints = [
-    '/api/auth/me',
-    '/api/chat/me/view',
-    '/api/message/history',
-    '/api/messages/history',
-    '/api/messages',
-    '/api/chat/messages'
-  ];
-
-  const results = {};
-
-  for (const endpoint of testEndpoints) {
-    try {
-      const url = `${BASE_URL}${endpoint}`;
-
-      const res = await fetch(url, {
-        method: 'GET',
-        credentials: 'include',
-        headers: defaultHeaders(),
-      });
-
-      results[endpoint] = {
-        status: res.status,
-        ok: res.ok,
-        statusText: res.statusText
-      };
-
-
-
-    } catch (error) {
-      results[endpoint] = {
-        error: error.message,
-        status: 'ERROR'
-      };
-
-    }
+  if (!Array.isArray(list)) {
+    throw new Error('Unexpected user search response shape')
   }
 
+  // Normalize shape for UI usage
+  const normalized = list.map((u) => {
+    const backendId = u.id ?? u.user_id ?? u._id ?? u.uid ?? u.uuid ?? null
+    return {
+      ...u,
+      id: backendId, // use only real backend ID; do NOT fall back to username/email
+      username: u.username || u.name || u.fullname || u.displayName || u.email || String(backendId || ''),
+      email: u.email || u.mail || '',
+      avatar: u.avatar || u.photo || u.picture || u.image || '/default-avatar.svg',
+    }
+  })
 
-  return results;
+  return { items: normalized }
 }
+
