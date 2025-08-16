@@ -7,12 +7,12 @@ export default function VerifyPage() {
 
   const handleChange = (e, index) => {
     const value = e.target.value
-    if (!/^\d?$/.test(value)) return // chỉ cho số
+    if (!/^\d?$/.test(value)) return // allow only digits
     const newCode = [...code]
     newCode[index] = value
     setCode(newCode)
 
-    // auto focus ô tiếp theo
+    // auto focus next input
     if (value && index < 4) {
       document.getElementById(`code-${index + 1}`).focus()
     }
@@ -21,7 +21,7 @@ export default function VerifyPage() {
   const handleVerify = () => {
     const enteredCode = code.join('')
 
-    // Gọi API verify tại đây
+    // TODO: Call verify API here
   }
 
   return (

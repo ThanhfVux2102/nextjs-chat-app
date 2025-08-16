@@ -90,101 +90,101 @@ export function ChatProvider({ children }) {
     }
   }, [messages, currentUser?.id])
 
-// Chuẩn hóa mảng participant về mảng string, bỏ null/undefined
-const normParticipants = (p) =>
-  Array.isArray(p) ? Array.from(new Set(p.map(String).filter(Boolean))).sort() : [];
+  // Chuẩn hóa mảng participant về mảng string, bỏ null/undefined
+  const normParticipants = (p) =>
+    Array.isArray(p) ? Array.from(new Set(p.map(String).filter(Boolean))).sort() : [];
 
-// So sánh 2 room là cùng phòng không
-const isSameRoom = (a, b) => {
-  const aId = a.chat_id || a.id;
-  const bId = b.chat_id || b.id;
-  if (aId && bId && String(aId) === String(bId)) return true;
+  // So sánh 2 room là cùng phòng không
+  const isSameRoom = (a, b) => {
+    const aId = a.chat_id || a.id;
+    const bId = b.chat_id || b.id;
+    if (aId && bId && String(aId) === String(bId)) return true;
 
-  const pa = normParticipants(a.participants || a.member_ids);
-  const pb = normParticipants(b.participants || b.member_ids);
-  if (pa.length && pb.length && pa.length === pb.length) {
-    // cùng tập participants ⇒ coi là cùng phòng
-    for (let i = 0; i < pa.length; i++) if (pa[i] !== pb[i]) return false;
-    return true;
-  }
-  return false;
-};
-
-// tên generic/placeholder (để tránh downgrade)
-const isGenericName = (n = '') => {
-  const s = String(n).trim().toLowerCase();
-  return (
-    !s ||
-    s === 'new chat' ||
-    s === 'group' ||
-    s === 'personal' ||
-    s === 'chat' ||
-    /^chat\b/.test(s) ||
-    /^[a-f0-9]{24}$/i.test(s)
-  );
-};
-
-// Helper để hiển thị tên chat ưu tiên username/email thay vì "Chat with User"
-const displayName = (item) => {
-  const nice = item.other_user_username || item.username || item.other_user_email || item.email;
-  if (nice) return nice;
-  
-  if (item.name && !isGenericName(item.name)) return item.name;
-  
-  return item.other_user_id ? `Chat with ${item.other_user_id}` : `Chat ${item.chat_id || ''}`;
-};
-
-
-const upsertChat = (incomingRaw) => {
-  if (!incomingRaw) return;
-
-  // Chuẩn hóa incoming trước khi merge
-  const incoming = {
-    ...incomingRaw,
-    chat_id: incomingRaw.chat_id || incomingRaw.id,
-    participants: normParticipants(incomingRaw.participants || incomingRaw.member_ids),
-  };
-  const incomingName = incoming.name || incoming.chat_name || incoming.username;
-
-  setChats((prev) => {
-    // Tìm phòng trùng bằng chat_id hoặc participants
-    const idx = prev.findIndex((c) => isSameRoom(c, incoming));
-    if (idx !== -1) {
-      const existing = prev[idx];
-      const existingName = existing.name || existing.chat_name || existing.username;
-
-      const merged = {
-        ...existing,
-        ...incoming,
-        // Không cho tên generic ghi đè tên “đẹp”
-        name: !isGenericName(incomingName) ? incomingName : existingName,
-        // Giữ các field “đối tác” nếu đã có
-        other_user_id: incoming.other_user_id || existing.other_user_id,
-        other_user_username: incoming.other_user_username || existing.other_user_username,
-        other_user_email: incoming.other_user_email || existing.other_user_email,
-        username: incoming.username || existing.username,
-        email: incoming.email || existing.email,
-        avatar: incoming.avatar || existing.avatar,
-        user_id: incoming.user_id || existing.user_id,
-        // luôn giữ participants chuẩn hóa
-        participants: normParticipants(incoming.participants || existing.participants),
-      };
-
-      const next = [...prev];
-      next[idx] = merged;
-      return next;
+    const pa = normParticipants(a.participants || a.member_ids);
+    const pb = normParticipants(b.participants || b.member_ids);
+    if (pa.length && pb.length && pa.length === pb.length) {
+      // cùng tập participants ⇒ coi là cùng phòng
+      for (let i = 0; i < pa.length; i++) if (pa[i] !== pb[i]) return false;
+      return true;
     }
+    return false;
+  };
 
-    // Không trùng ⇒ thêm mới
-    return [
-      {
-        ...incoming,
-        participants: normParticipants(incoming.participants),
-      },
-      ...prev,
-    ];
-  });
-};
+  // tên generic/placeholder (để tránh downgrade)
+  const isGenericName = (n = '') => {
+    const s = String(n).trim().toLowerCase();
+    return (
+      !s ||
+      s === 'new chat' ||
+      s === 'group' ||
+      s === 'personal' ||
+      s === 'chat' ||
+      /^chat\b/.test(s) ||
+      /^[a-f0-9]{24}$/i.test(s)
+    );
+  };
+
+  // Helper để hiển thị tên chat ưu tiên username/email thay vì "Chat with User"
+  const displayName = (item) => {
+    const nice = item.other_user_username || item.username || item.other_user_email || item.email;
+    if (nice) return nice;
+
+    if (item.name && !isGenericName(item.name)) return item.name;
+
+    return item.other_user_id ? `Chat with ${item.other_user_id}` : `Chat ${item.chat_id || ''}`;
+  };
+
+
+  const upsertChat = (incomingRaw) => {
+    if (!incomingRaw) return;
+
+    // Chuẩn hóa incoming trước khi merge
+    const incoming = {
+      ...incomingRaw,
+      chat_id: incomingRaw.chat_id || incomingRaw.id,
+      participants: normParticipants(incomingRaw.participants || incomingRaw.member_ids),
+    };
+    const incomingName = incoming.name || incoming.chat_name || incoming.username;
+
+    setChats((prev) => {
+      // Tìm phòng trùng bằng chat_id hoặc participants
+      const idx = prev.findIndex((c) => isSameRoom(c, incoming));
+      if (idx !== -1) {
+        const existing = prev[idx];
+        const existingName = existing.name || existing.chat_name || existing.username;
+
+        const merged = {
+          ...existing,
+          ...incoming,
+          // Không cho tên generic ghi đè tên “đẹp”
+          name: !isGenericName(incomingName) ? incomingName : existingName,
+          // Giữ các field “đối tác” nếu đã có
+          other_user_id: incoming.other_user_id || existing.other_user_id,
+          other_user_username: incoming.other_user_username || existing.other_user_username,
+          other_user_email: incoming.other_user_email || existing.other_user_email,
+          username: incoming.username || existing.username,
+          email: incoming.email || existing.email,
+          avatar: incoming.avatar || existing.avatar,
+          user_id: incoming.user_id || existing.user_id,
+          // luôn giữ participants chuẩn hóa
+          participants: normParticipants(incoming.participants || existing.participants),
+        };
+
+        const next = [...prev];
+        next[idx] = merged;
+        return next;
+      }
+
+      // Không trùng ⇒ thêm mới
+      return [
+        {
+          ...incoming,
+          participants: normParticipants(incoming.participants),
+        },
+        ...prev,
+      ];
+    });
+  };
 
 
   const updateChatLastMessage = (chatId, text, timestamp = new Date().toISOString()) => {
@@ -541,8 +541,8 @@ const upsertChat = (incomingRaw) => {
         const hasParticipants = normalizedRoom.participants?.length > 0;
         const hasCounterpart =
           !!(normalizedRoom.other_user_id ||
-             normalizedRoom.other_user_username ||
-             normalizedRoom.other_user_email);
+            normalizedRoom.other_user_username ||
+            normalizedRoom.other_user_email);
         const genericName = isGenericName(normalizedRoom.name);
         const hasAnyContent = !!normalizedRoom.last_message;
 
@@ -588,7 +588,7 @@ const upsertChat = (incomingRaw) => {
       setLoading(true)
       const response = await getChatList(cursor)
       const items = response.chats || []
-      
+
       // normalize tối thiểu để upsert hoạt động chính xác
       items.forEach((raw) => {
         const normalized = {
