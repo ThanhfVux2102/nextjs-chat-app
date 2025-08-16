@@ -5,32 +5,38 @@ import './login.css'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
+import { useToast } from '@/contexts/ToastContext'
 
 const Login = () => {
   const router = useRouter()
   const { login: authLogin } = useAuth()
+  const toast = useToast()
 
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  
   const handleLogin = async () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!email || !password) {
-      setMessage('Please fill in all fields')
+      toast.error('Please fill in both email and password')
+      return
+    }
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address')
       return
     }
     setLoading(true)
-    setMessage('')
     try {
       // First, perform the login
-      const loginRes = await login(email, password);
+      await login(email, password)
 
       // After successful login, get current user data from /api/auth/me
-      const currentUserData = await getCurrentUser();
+      const currentUserData = await getCurrentUser()
 
       if (!currentUserData || !currentUserData.user_id) {
-        throw new Error('Failed to get user data from server');
+        throw new Error('Failed to get user data from server')
       }
 
       // Use server-provided user_id and username instead of client-generated fallbacks
@@ -42,16 +48,22 @@ const Login = () => {
         avatar: '/avatars/default.jpg', // Default avatar
       }
 
-
-
       authLogin(userData)
 
-      setMessage('Login successful!')
-
-      router.replace('/chat')
+      toast.success('Login successful! Redirecting...', 1200)
+      setTimeout(() => {
+        router.replace('/chat')
+      }, 1000)
     } catch (err) {
       console.error('Login error', err)
-      setMessage(err?.message || 'Connection error to server')
+      const msg = String(err?.message || '')
+      if (err?.status === 401 || /invalid|wrong|credential/i.test(msg)) {
+        toast.error('Incorrect email or password')
+      } else if (err?.status === 400 && /email/i.test(msg)) {
+        toast.error('Please enter a valid email address')
+      } else {
+        toast.error('Server error. Please try again later.')
+      }
     } finally {
       setLoading(false)
     }
@@ -102,9 +114,9 @@ const Login = () => {
           </Link>
         </div>
 
-        <button className="btn-black" onClick={handleLogin}>Login Now</button>
-
-        {message && <p style={{ color: 'red', marginTop: 10 }}>{message}</p>}
+        <button className="btn-black" onClick={handleLogin} disabled={loading}>
+          {loading ? 'Logging in...' : 'Login Now'}
+        </button>
       </div>
       <div className="image-section">
         <img src="/background.jpg" alt="team" />

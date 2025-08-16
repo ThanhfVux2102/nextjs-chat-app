@@ -39,7 +39,10 @@ export async function login(email, password) {
 
   if (!res.ok || data.error || data.detail) {
     const msg = data.detail || data.message || data.error || `Status ${res.status}`;
-    throw new Error(msg);
+    const error = new Error(msg);
+    error.status = res.status;
+    error.code = data.code || res.status;
+    throw error;
   }
 
   // Persist any bearer token fields for cross-site auth fallback
@@ -60,12 +63,31 @@ export async function register(email, username, password) {
     credentials: 'include',
   });
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.detail || 'Registration failed');
+  const text = await res.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (e) {
+    // Non-JSON response
+    if (!res.ok) {
+      const error = new Error(text || `Status ${res.status}`);
+      error.status = res.status;
+      error.code = res.status;
+      throw error;
+    }
+    // On success with non-JSON (unlikely), return an empty object
+    return {};
   }
 
-  return await res.json();
+  if (!res.ok || data.error || data.detail) {
+    const msg = data.detail || data.message || data.error || `Status ${res.status}`;
+    const error = new Error(msg);
+    error.status = res.status;
+    error.code = data.code || res.status;
+    throw error;
+  }
+
+  return data;
 }
 
 

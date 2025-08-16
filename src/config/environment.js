@@ -12,7 +12,7 @@ export const config = {
     CHAT_LIST: '/api/chat/me/view',
     MESSAGE_HISTORY: '/api/message/history',
     CREATE_PERSONAL_CHAT: '/api/chat/create/personal',
-    SEARCH_USERS: '/api/users/search'
+    SEARCH_USERS: '/api/auth/users'
   },
 
   // WebSocket message types

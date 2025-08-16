@@ -42,30 +42,10 @@ export default function Sidebar({ onClose }) {
     if (query.trim()) {
       setSearching(true)
       try {
-
-        // Run user search while also filtering chats locally
-        const [results] = await Promise.all([
-          searchUsers(query),
-        ])
-
-
-        // Handle different response formats
-        let users = []
-        if (Array.isArray(results)) {
-          users = results
-        } else if (results && Array.isArray(results.users)) {
-          users = results.users
-        } else if (results && Array.isArray(results.data)) {
-          users = results.data
-        } else if (results && results.items && Array.isArray(results.items)) {
-          users = results.items
-        } else {
-          users = []
-        }
-
+        const results = await searchUsers(query)
+        const users = Array.isArray(results) ? results : []
         setSearchResults(users)
 
-        // Filter chats locally based on name or last_message match
         const chatMatches = (Array.isArray(chats) ? chats : []).filter((c) => {
           const hay = `${c.name || c.chat_name || c.username || ''} ${c.last_message || ''}`.toLowerCase()
           return hay.includes(query.toLowerCase())
@@ -103,22 +83,7 @@ export default function Sidebar({ onClose }) {
       setModalSearching(true)
       try {
         const results = await searchUsers(query)
-
-        // Handle different response formats
-        let users = []
-        if (Array.isArray(results)) {
-          users = results
-        } else if (results && Array.isArray(results.users)) {
-          users = results.users
-        } else if (results && Array.isArray(results.data)) {
-          users = results.data
-        } else if (results && results.items && Array.isArray(results.items)) {
-          users = results.items
-        } else {
-          users = []
-        }
-
-        setModalSearchResults(users)
+        setModalSearchResults(results)
       } catch (err) {
         console.error('Error searching users in modal:', err)
 
