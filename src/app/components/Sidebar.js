@@ -174,7 +174,7 @@ export default function Sidebar({ onClose }) {
   }
 
   const handleResetPassword = () => {
-    router.push('/reset-password')
+    router.push('/forget-password')
   }
 
   const handleAddClick = () => {
@@ -220,10 +220,10 @@ export default function Sidebar({ onClose }) {
 
   return (
     <>
-      <div style={{ 
-        padding: '10px', 
-        height: '100%', 
-        display: 'flex', 
+      <div style={{
+        padding: '10px',
+        height: '100%',
+        display: 'flex',
         flexDirection: 'column',
         position: 'relative',
       }}>
@@ -252,16 +252,16 @@ export default function Sidebar({ onClose }) {
             ×
           </button>
         )}
-                 {/* Header with Messages title and buttons */}
-         <div style={{
-           display: 'flex',
-           justifyContent: 'space-between',
-           alignItems: 'center',
-           marginBottom: 20,
-           position: 'relative',
-           marginTop: onClose ? '40px' : '0',
-         }}>
-           <h3 style={{ fontSize: 'clamp(20px, 4vw, 30px)', fontWeight: 700, margin: 0 }}>Messages</h3>
+        {/* Header with Messages title and buttons */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 20,
+          position: 'relative',
+          marginTop: onClose ? '40px' : '0',
+        }}>
+          <h3 style={{ fontSize: 'clamp(20px, 4vw, 30px)', fontWeight: 700, margin: 0 }}>Messages</h3>
 
           {/* Buttons container */}
           <div style={{ display: 'flex', gap: 8 }}>
@@ -442,61 +442,61 @@ export default function Sidebar({ onClose }) {
           />
         )}
 
-                 <input
-           type="text"
-           placeholder={'Search chats or users...'}
-           value={searchQuery}
-           onChange={(e) => handleSearch(e.target.value)}
-           style={{
-             width: '100%',
-             padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px)',
-             marginBottom: 20,
-             border: '1px solid #ddd',
-             borderRadius: 20,
-             outline: 'none',
-             backgroundColor: '#fff',
-             color: '#000',
-             fontSize: 'clamp(12px, 3vw, 14px)',
-             boxSizing: 'border-box',
-           }}
-         />
+        <input
+          type="text"
+          placeholder={'Search chats or users...'}
+          value={searchQuery}
+          onChange={(e) => handleSearch(e.target.value)}
+          style={{
+            width: '100%',
+            padding: 'clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px)',
+            marginBottom: 20,
+            border: '1px solid #ddd',
+            borderRadius: 20,
+            outline: 'none',
+            backgroundColor: '#fff',
+            color: '#000',
+            fontSize: 'clamp(12px, 3vw, 14px)',
+            boxSizing: 'border-box',
+          }}
+        />
 
-                 <div style={{ marginBottom: 20, display: 'flex', gap: 'clamp(8px, 2vw, 10px)' }}>
-           <button
-             onClick={() => {
-               setShowUserSearch(false)
-             }}
-             style={{
-               padding: 'clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px)',
-               backgroundColor: !showUserSearch ? '#007AFF' : '#f0f0f0',
-               color: !showUserSearch ? '#fff' : '#333',
-               border: 'none',
-               borderRadius: 20,
-               cursor: 'pointer',
-               fontSize: 'clamp(10px, 2.5vw, 12px)',
-               flex: 1,
-             }}
-           >
-             Chats
-           </button>
-           <button
-             onClick={() => {
-               setShowUserSearch(true)
-             }}
-             style={{
-               padding: 'clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px)',
-               backgroundColor: showUserSearch ? '#007AFF' : '#f0f0f0',
-               color: showUserSearch ? '#fff' : '#333',
-               border: 'none',
-               borderRadius: 20,
-               cursor: 'pointer',
-               fontSize: 'clamp(10px, 2.5vw, 12px)',
-               flex: 1,
-             }}
-           >
-             Find Users
-           </button>
-         </div>
+        <div style={{ marginBottom: 20, display: 'flex', gap: 'clamp(8px, 2vw, 10px)' }}>
+          <button
+            onClick={() => {
+              setShowUserSearch(false)
+            }}
+            style={{
+              padding: 'clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px)',
+              backgroundColor: !showUserSearch ? '#007AFF' : '#f0f0f0',
+              color: !showUserSearch ? '#fff' : '#333',
+              border: 'none',
+              borderRadius: 20,
+              cursor: 'pointer',
+              fontSize: 'clamp(10px, 2.5vw, 12px)',
+              flex: 1,
+            }}
+          >
+            Chats
+          </button>
+          <button
+            onClick={() => {
+              setShowUserSearch(true)
+            }}
+            style={{
+              padding: 'clamp(6px, 2vw, 8px) clamp(12px, 3vw, 16px)',
+              backgroundColor: showUserSearch ? '#007AFF' : '#f0f0f0',
+              color: showUserSearch ? '#fff' : '#333',
+              border: 'none',
+              borderRadius: 20,
+              cursor: 'pointer',
+              fontSize: 'clamp(10px, 2.5vw, 12px)',
+              flex: 1,
+            }}
+          >
+            Find Users
+          </button>
+        </div>
 
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -641,14 +641,14 @@ export default function Sidebar({ onClose }) {
                       alt={item.username || item.name || 'user'}
                       style={{ width: 'clamp(35px, 8vw, 45px)', height: 'clamp(35px, 8vw, 45px)', borderRadius: '50%', objectFit: 'cover' }}
                     />
-                                          <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 'bold', fontSize: 'clamp(12px, 3vw, 14px)', color: '#333', marginBottom: 4 }}>
-                          {item.username || item.name}
-                        </div>
-                        <div style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {item.email || ''}
-                        </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 'bold', fontSize: 'clamp(12px, 3vw, 14px)', color: '#333', marginBottom: 4 }}>
+                        {item.username || item.name}
                       </div>
+                      <div style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.email || ''}
+                      </div>
+                    </div>
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
