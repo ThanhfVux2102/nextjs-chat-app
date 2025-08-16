@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { resetPassword } from '@/lib/api'
 
-export default function ResetPasswordWithSlashTokenPage() {
+export default function ResetPasswordPage() {
     const router = useRouter()
     const { token } = useParams()
 
