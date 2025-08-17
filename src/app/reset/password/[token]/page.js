@@ -4,40 +4,40 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { resetPassword } from '@/lib/api'
+import { useToast } from '@/contexts/ToastContext'
 
 export default function ResetPasswordPage() {
     const router = useRouter()
     const { token } = useParams()
+    const toast = useToast()
 
     const [pw1, setPw1] = useState('')
     const [pw2, setPw2] = useState('')
     const [loading, setLoading] = useState(false)
-    const [msg, setMsg] = useState('')
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-        setMsg('')
 
         if (!token) {
-            setMsg('Missing reset token. Please open the link from your email again.')
+            toast.error('Missing reset token. Please open the link from your email again.')
             return
         }
         if (pw1.length < 8) {
-            setMsg('Password must be at least 8 characters.')
+            toast.error('Password must be at least 8 characters.')
             return
         }
         if (pw1 !== pw2) {
-            setMsg('Passwords do not match.')
+            toast.error('Passwords do not match.')
             return
         }
 
         try {
             setLoading(true)
             const resp = await resetPassword(token, pw1, pw2)
-            alert(resp?.msg ?? 'Password updated successfully')
-            router.push('/login')
+            toast.success(resp?.msg ?? 'Password updated successfully', 1200)
+            setTimeout(() => router.push('/login'), 1000)
         } catch (err) {
-            setMsg(err?.message ?? 'Failed to reset password. Try again.')
+            toast.error(err?.message ?? 'Failed to reset password. Try again.')
         } finally {
             setLoading(false)
         }
@@ -55,6 +55,7 @@ export default function ResetPasswordPage() {
                     <input
                         type="password"
                         placeholder="new password"
+                        autoComplete="off"
                         value={pw1}
                         onChange={(e) => setPw1(e.target.value)}
                         style={styles.input}
@@ -62,7 +63,8 @@ export default function ResetPasswordPage() {
                     />
                     <input
                         type="password"
-                        placeholder="new password"
+                        placeholder="confirm password"
+                        autoComplete="off"
                         value={pw2}
                         onChange={(e) => setPw2(e.target.value)}
                         style={{ ...styles.input, marginTop: 12 }}
@@ -72,7 +74,6 @@ export default function ResetPasswordPage() {
                         {loading ? 'Verifying…' : 'Verify'}
                     </button>
                 </form>
-                {msg && <p style={styles.error}>{msg}</p>}
                 <p style={styles.resend}>
                     Haven’t got the email yet?{' '}
                     <a href="/forget-password" style={styles.resendLink}>Resend email</a>
