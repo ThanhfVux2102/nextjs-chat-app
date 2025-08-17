@@ -591,7 +591,7 @@ export function ChatProvider({ children }) {
           last_message_time: room.last_message_time || lastUpd,
         };
 
-        // 🚫 Hard filter: skip ghost/placeholder rooms
+        // Hard filter: skip ghost/placeholder rooms
         const hasParticipants = normalizedRoom.participants?.length > 0;
         const hasCounterpart =
           !!(normalizedRoom.other_user_id ||
@@ -697,6 +697,21 @@ export function ChatProvider({ children }) {
         text: msg.content || msg.text || msg.message || ''
       }))
 
+      // Compute a fallback next cursor using the oldest timestamp across current and newly fetched messages
+      const existingForChatNow = messages.filter(m => m.chat_id === chatId)
+      const oldestExistingTs = existingForChatNow.reduce((min, m) => {
+        const t = m.timestamp_ms ?? parseTimestampToMs(m.timestamp)
+        return (t >= 0 && t < min) ? t : min
+      }, Number.POSITIVE_INFINITY)
+      const oldestFetchedTs = normalized.reduce((min, m) => {
+        const t = m.timestamp_ms ?? parseTimestampToMs(m.timestamp)
+        return (t >= 0 && t < min) ? t : min
+      }, Number.POSITIVE_INFINITY)
+      const fallbackNextCursorCandidate = Math.min(oldestExistingTs, oldestFetchedTs)
+      const fallbackExclusive = Number.isFinite(fallbackNextCursorCandidate)
+        ? Math.max(0, fallbackNextCursorCandidate - 1)
+        : null
+
       if (cursor) {
         setMessages(prev => {
           const existingForChat = prev.filter(m => m.chat_id === chatId)
@@ -714,18 +729,33 @@ export function ChatProvider({ children }) {
         })
       } else {
         setMessages(prev => {
+          const existingForChat = prev.filter(m => m.chat_id === chatId)
           const others = prev.filter(m => m.chat_id !== chatId)
-          return [...others, ...normalized]
+          const combined = [...existingForChat, ...normalized]
+          const seen = new Set()
+          const deduped = combined.filter(m => {
+            const key = `${m.chat_id}-${m.id}-${m.timestamp}-${m.text}`
+            if (seen.has(key)) return false
+            seen.add(key)
+            return true
+          })
+          return [...others, ...deduped]
         })
       }
 
       // Update per-chat pagination state
+      const nextCursor = (response.next_cursor ?? response.nextCursor ?? fallbackExclusive)
+      const serverHasMore = (response.has_more ?? response.hasMore)
+      const computedHasMore = (typeof serverHasMore === 'boolean')
+        ? serverHasMore
+        : (nextCursor !== null || normalized.length >= limit)
+
       setMessagePagination(prev => ({
         ...prev,
         [chatId]: {
           ...(prev[chatId] || {}),
-          cursor: response.next_cursor ?? response.nextCursor ?? null,
-          hasMore: response.has_more ?? response.hasMore ?? (normalized.length >= limit),
+          cursor: nextCursor,
+          hasMore: computedHasMore,
           isLoading: false,
         }
       }))
@@ -755,8 +785,10 @@ export function ChatProvider({ children }) {
 
   const loadMoreMessages = async (chatId, limit = 50) => {
     if (!chatId) return
-    const state = messagePagination[chatId] || { cursor: null, isLoading: false }
-    if (state.isLoading) return
+    const state = messagePagination[chatId] || { cursor: null, isLoading: false, hasMore: true }
+    if (state.isLoading || state.hasMore === false) {
+      return
+    }
     setMessagePagination(prev => ({
       ...prev,
       [chatId]: { ...(prev[chatId] || {}), isLoading: true }
@@ -965,20 +997,21 @@ export function ChatProvider({ children }) {
 
   const setCurrentChatUser = (chat) => {
     // Clear messages for the new current chat immediately to avoid stale render from previous account
-    if (chat?.chat_id) {
-      setMessages(prev => prev.filter(m => m.chat_id !== chat.chat_id))
+    if (chat?.chat_id || chat?.id) {
+      const cidTmp = chat.chat_id || chat.id
+      setMessages(prev => prev.filter(m => m.chat_id !== cidTmp))
     }
 
     setCurrentChat(chat)
     const cid = chat?.chat_id || chat?.id
     if (cid) {
       // Load persisted messages first for instant display
-      const persistedMessages = loadPersistedMessages(chat.chat_id)
+      const persistedMessages = loadPersistedMessages(cid)
       if (persistedMessages.length > 0) {
         // Normalize persisted messages for ownership correctness
         const normalizedPersisted = persistedMessages.map(msg => ({
           ...msg,
-          chat_id: msg.chat_id || chat.chat_id,
+          chat_id: msg.chat_id || cid,
           content: msg.content || msg.text || '',
           text: msg.content || msg.text || '',
           from: msg.from || msg.sender_id || msg.user_id || msg.sender,
@@ -986,7 +1019,7 @@ export function ChatProvider({ children }) {
         }))
 
         setMessages(prev => {
-          const others = prev.filter(m => m.chat_id !== chat.chat_id)
+          const others = prev.filter(m => m.chat_id !== cid)
           return [...others, ...normalizedPersisted]
         })
       }
@@ -995,22 +1028,25 @@ export function ChatProvider({ children }) {
       // Initialize pagination state for this chat
       setMessagePagination(prev => ({
         ...prev,
-        [cid]: { cursor: null, hasMore: true, isLoading: false }
+        [cid]: { cursor: null, hasMore: true, isLoading: true }
       }))
 
-      // Attempt to fetch members for this chat (useful for group chats)
-      ;(async () => {
-        try {
-          const res = await getChatMembers(cid)
-          const items = res.items || []
-          if (Array.isArray(items) && items.length > 0) {
-            setChatMembersByChatId(prev => ({ ...prev, [cid]: items }))
+      // Kick off initial page load (first 50)
+      loadChatMessages(cid, null, 50)
+
+        // Attempt to fetch members for this chat (useful for group chats)
+        ; (async () => {
+          try {
+            const res = await getChatMembers(cid)
+            const items = res.items || []
+            if (Array.isArray(items) && items.length > 0) {
+              setChatMembersByChatId(prev => ({ ...prev, [cid]: items }))
+            }
+          } catch (e) {
+            // Silently ignore; UI will fallback to generic labels
+            console.warn('Failed to fetch chat members:', e?.message)
           }
-        } catch (e) {
-          // Silently ignore; UI will fallback to generic labels
-          console.warn('Failed to fetch chat members:', e?.message)
-        }
-      })()
+        })()
     } else {
       setMessages([])
     }

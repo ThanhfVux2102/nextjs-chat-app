@@ -23,9 +23,12 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen, isMobile }
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current
     if (!container || !currentChat) return
-    if (container.scrollTop <= 0) {
+    // Use a small threshold to account for padding/layout rounding
+    const threshold = 20
+    if (container.scrollTop <= threshold) {
+      const cid = currentChat.chat_id || currentChat.id
       // Load 50 more older messages
-      loadMoreMessages(currentChat.chat_id || currentChat.id, 50)
+      loadMoreMessages(cid, 50)
     }
   }, [currentChat, loadMoreMessages])
 
