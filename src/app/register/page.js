@@ -91,7 +91,7 @@ export default function RegisterPage() {
             width: '100%',
             boxSizing: 'border-box'
           }} />
-          <input name="password" type="password" placeholder="Password" onChange={handleChange} value={form.password} required autoComplete="new-password" style={{
+          <input name="password" type="password" placeholder="Password" onChange={handleChange} value={form.password} required autoComplete="off" style={{
             color: 'black', border: '1px solid black',
             padding: '8px',
             borderRadius: '4px',
@@ -99,7 +99,7 @@ export default function RegisterPage() {
             width: '100%',
             boxSizing: 'border-box'
           }} />
-          <input name="confirmPassword" type="password" placeholder="Confirm Password" onChange={handleChange} value={form.confirmPassword} required autoComplete="new-password" style={{
+          <input name="confirmPassword" type="password" placeholder="Confirm Password" onChange={handleChange} value={form.confirmPassword} required autoComplete="off" style={{
             color: 'black', border: '1px solid black',
             padding: '8px',
             borderRadius: '4px',

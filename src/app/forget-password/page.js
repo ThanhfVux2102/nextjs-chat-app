@@ -2,27 +2,36 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { forgotPassword } from '@/lib/api'
+import { useToast } from '@/contexts/ToastContext'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
   const router = useRouter()
+  const toast = useToast()
 
 const handleSubmit = async (e) => {
   e.preventDefault()
-  setMessage('')
-  setError('')
-  setLoading(true)
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!email) {
+    toast.error('Please enter your email')
+    return
+  }
+  if (!emailRegex.test(email)) {
+    toast.error('Please enter a valid email address')
+    return
+  }
+
+  setLoading(true)
   try {
-      await forgotPassword(email)
-      setMessage('Check your email for the reset link.')
-    } catch (err) {
-      setError(err?.message || 'Failed to send reset link')
-    } finally {
-      setLoading(false)
+    await forgotPassword(email)
+    toast.success('Check your email for the reset link.', 1200)
+  } catch (err) {
+    const msg = String(err?.message || 'Failed to send reset link')
+    toast.error(msg)
+  } finally {
+    setLoading(false)
   }
 }
 
@@ -45,8 +54,6 @@ const handleSubmit = async (e) => {
           />
           <button type="submit" style={styles.submitButton}>Reset Password</button>
         </form>
-        {message && <p style={styles.success}>{message}</p>}
-        {error && <p style={styles.error}>{error}</p>}
         <p style={styles.minitext}>Already remember your password? <a href="/login">Back to login</a></p>
       </div>
     </div>
