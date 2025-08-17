@@ -125,6 +125,30 @@ export function ChatProvider({ children }) {
     );
   };
 
+  // Robustly parse ISO timestamps (with microseconds) or numbers to ms since epoch
+  const parseTimestampToMs = (ts) => {
+    try {
+      if (ts == null) return 0;
+      if (typeof ts === 'number') {
+        // If seconds (10 digits), convert to ms
+        return ts < 1e12 ? Math.floor(ts * 1000) : Math.floor(ts);
+      }
+      if (typeof ts === 'string') {
+        // Trim/normalize fractional seconds to milliseconds
+        // Example: 2025-01-01T10:20:30.123456Z -> 2025-01-01T10:20:30.123Z
+        const normalized = ts.replace(/(\.\d{3})\d+/, '$1');
+        const t = Date.parse(normalized);
+        if (!Number.isNaN(t)) return t;
+        // Try raw parse as fallback
+        const raw = Date.parse(ts);
+        if (!Number.isNaN(raw)) return raw;
+        const asNum = Number(ts);
+        if (!Number.isNaN(asNum)) return asNum < 1e12 ? Math.floor(asNum * 1000) : Math.floor(asNum);
+      }
+    } catch (_) { }
+    return 0;
+  };
+
   // Helper to display chat name, prefer username/email over "Chat with User"
   const displayName = (item) => {
     const nice = item.other_user_username || item.username || item.other_user_email || item.email;
@@ -278,22 +302,28 @@ export function ChatProvider({ children }) {
         const chatIdFromPayload = data.chat_id || data.chatId || (incomingMessages[0]?.chat_id)
 
         // Normalize messages
-        const normalized = incomingMessages.map((msg) => ({
-          // Spread first so our normalized fields below take precedence
-          ...msg,
-          id: msg.id || Date.now() + Math.random(),
-          chat_id: msg.chat_id || chatIdFromPayload || currentChat?.chat_id,
-          timestamp: msg.timestamp || new Date().toISOString(),
-          content: msg.content || msg.text || msg.message || '',
-          text: msg.content || msg.text || msg.message || '',
-          from: msg.sender_id || msg.from || msg.user_id || msg.sender
-        }))
+        const normalized = incomingMessages.map((msg) => {
+          const ts = msg.timestamp || new Date().toISOString();
+          return {
+            // Spread first so our normalized fields below take precedence
+            ...msg,
+            id: msg.id || Date.now() + Math.random(),
+            chat_id: msg.chat_id || chatIdFromPayload || currentChat?.chat_id,
+            timestamp: ts,
+            timestamp_ms: parseTimestampToMs(ts),
+            content: msg.content || msg.text || msg.message || '',
+            text: msg.content || msg.text || msg.message || '',
+            from: msg.sender_id || msg.from || msg.user_id || msg.sender
+          }
+        })
 
         // Replace current chat messages with sorted ascending order
         setMessages((previousMessages) => {
           if (!chatIdFromPayload) return previousMessages
           const others = previousMessages.filter(m => m.chat_id !== chatIdFromPayload)
-          const sorted = normalized.slice().sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+          const sorted = normalized
+            .slice()
+            .sort((a, b) => (a.timestamp_ms ?? parseTimestampToMs(a.timestamp)) - (b.timestamp_ms ?? parseTimestampToMs(b.timestamp)))
           return [...others, ...sorted]
         })
       })
@@ -338,12 +368,14 @@ export function ChatProvider({ children }) {
 
               if (optimisticIndex !== -1) {
                 // Replace optimistic message with server-confirmed message
+                const _ts = messageData.timestamp || new Date().toISOString();
                 const serverMessage = {
                   id: messageData.id || Date.now(),
                   from: senderId,
                   text: messageContent,
                   content: messageContent,
-                  timestamp: messageData.timestamp || new Date().toISOString(),
+                  timestamp: _ts,
+                  timestamp_ms: parseTimestampToMs(_ts),
                   chat_id: messageChatId,
                   isOptimistic: false, // Mark as server-confirmed
                   ...messageData,
@@ -370,24 +402,30 @@ export function ChatProvider({ children }) {
           // Check if this message already exists in our state (prevent duplicates)
           setMessages((previousMessages) => {
             // More specific duplicate check: same content, same chat, same sender, within 5 seconds
-            const messageExists = previousMessages.some(msg =>
-              msg.text === messageContent &&
-              msg.chat_id === messageChatId &&
-              isSameUser(msg.from, senderId) &&
-              Math.abs(new Date(msg.timestamp) - new Date(messageData.timestamp || Date.now())) < 5000 // Within 5 seconds
-            );
+            const messageExists = previousMessages.some(msg => {
+              const at = msg.timestamp_ms ?? parseTimestampToMs(msg.timestamp);
+              const bt = parseTimestampToMs(messageData.timestamp || Date.now());
+              return (
+                msg.text === messageContent &&
+                msg.chat_id === messageChatId &&
+                isSameUser(msg.from, senderId) &&
+                Math.abs(at - bt) < 5000 // Within 5 seconds
+              );
+            });
 
             if (messageExists) {
               return previousMessages;
             }
 
             // Handle message from API docs format
+            const _ts = messageData.timestamp || new Date().toISOString();
             const newMessage = {
               id: messageData.id || Date.now(),
               from: senderId,
               text: messageContent,
               content: messageContent,
-              timestamp: messageData.timestamp || new Date().toISOString(),
+              timestamp: _ts,
+              timestamp_ms: parseTimestampToMs(_ts),
               chat_id: messageChatId,
               isOptimistic: false, // Mark as server-confirmed
               ...messageData,
@@ -448,12 +486,14 @@ export function ChatProvider({ children }) {
 
               if (optimisticIndex !== -1) {
                 // Replace optimistic message with server-confirmed message
+                const _ts2 = messageData.timestamp || new Date().toISOString();
                 const serverMessage = {
                   id: messageData.id || Date.now(),
                   from: senderId,
                   text: messageContent,
                   content: messageContent,
-                  timestamp: messageData.timestamp || new Date().toISOString(),
+                  timestamp: _ts2,
+                  timestamp_ms: parseTimestampToMs(_ts2),
                   chat_id: messageChatId,
                   isOptimistic: false, // Mark as server-confirmed
                   ...messageData,
@@ -480,24 +520,30 @@ export function ChatProvider({ children }) {
           // Check if this message already exists in our state (prevent duplicates)
           setMessages((previousMessages) => {
             // More specific duplicate check: same content, same chat, same sender, within 5 seconds
-            const messageExists = previousMessages.some(msg =>
-              msg.text === messageContent &&
-              msg.chat_id === messageChatId &&
-              isSameUser(msg.from, senderId) &&
-              Math.abs(new Date(msg.timestamp) - new Date(messageData.timestamp || Date.now())) < 5000 // Within 5 seconds
-            );
+            const messageExists = previousMessages.some(msg => {
+              const at = msg.timestamp_ms ?? parseTimestampToMs(msg.timestamp);
+              const bt = parseTimestampToMs(messageData.timestamp || Date.now());
+              return (
+                msg.text === messageContent &&
+                msg.chat_id === messageChatId &&
+                isSameUser(msg.from, senderId) &&
+                Math.abs(at - bt) < 5000 // Within 5 seconds
+              );
+            });
 
             if (messageExists) {
               return previousMessages;
             }
 
             // Handle message from API docs format
+            const _ts3 = messageData.timestamp || new Date().toISOString();
             const newMessage = {
               id: messageData.id || Date.now(),
               from: senderId,
               text: messageContent,
               content: messageContent,
-              timestamp: messageData.timestamp || new Date().toISOString(),
+              timestamp: _ts3,
+              timestamp_ms: parseTimestampToMs(_ts3),
               chat_id: messageChatId,
               isOptimistic: false, // Mark as server-confirmed
               ...messageData,
@@ -638,6 +684,7 @@ export function ChatProvider({ children }) {
         text: msg.content || msg.text || msg.message || '',
         content: msg.content || msg.text || msg.message || '',
         timestamp: msg.timestamp || new Date().toISOString(),
+        timestamp_ms: parseTimestampToMs(msg.timestamp || new Date().toISOString()),
         chat_id: msg.chat_id || chatId,
         ...msg,
         text: msg.content || msg.text || msg.message || ''
@@ -721,6 +768,7 @@ export function ChatProvider({ children }) {
       text: message.text,
       content: message.text,
       timestamp: new Date().toISOString(),
+      timestamp_ms: Date.now(),
       chat_id: message.chat_id,
       isOptimistic: true, // Mark as optimistic message
       ...message
@@ -926,7 +974,8 @@ export function ChatProvider({ children }) {
           chat_id: msg.chat_id || chat.chat_id,
           content: msg.content || msg.text || '',
           text: msg.content || msg.text || '',
-          from: msg.from || msg.sender_id || msg.user_id || msg.sender
+          from: msg.from || msg.sender_id || msg.user_id || msg.sender,
+          timestamp_ms: msg.timestamp_ms ?? parseTimestampToMs(msg.timestamp)
         }))
 
         setMessages(prev => {
@@ -976,8 +1025,8 @@ export function ChatProvider({ children }) {
     const filteredMessages = messages.filter(msg => msg.chat_id === chatId)
     // Sort ascending by timestamp (older first)
     return filteredMessages.slice().sort((a, b) => {
-      const at = new Date(a.timestamp || 0).getTime()
-      const bt = new Date(b.timestamp || 0).getTime()
+      const at = a.timestamp_ms ?? parseTimestampToMs(a.timestamp)
+      const bt = b.timestamp_ms ?? parseTimestampToMs(b.timestamp)
       if (at !== bt) return at - bt
       // Stable fallback by id to reduce jitter if timestamps equal
       return String(a.id).localeCompare(String(b.id))

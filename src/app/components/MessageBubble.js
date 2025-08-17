@@ -1,9 +1,16 @@
 'use client'
 
-export default function MessageBubble({ from, text, timestamp, isOwn, senderLabel }) {
-  const formatTime = (timestamp) => {
-    if (!timestamp) return ''
-    const date = new Date(timestamp)
+export default function MessageBubble({ from, text, timestamp, timestamp_ms, isOwn, senderLabel }) {
+  const formatTime = (ts, tsMs) => {
+    let date = null
+    if (typeof tsMs === 'number' && !Number.isNaN(tsMs)) {
+      date = new Date(tsMs)
+    } else if (tsMs && !Number.isNaN(Number(tsMs))) { // handle string numbers
+      date = new Date(Number(tsMs))
+    } else if (ts) {
+      date = new Date(ts)
+    }
+    if (!date || Number.isNaN(date.getTime())) return ''
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
@@ -38,14 +45,14 @@ export default function MessageBubble({ from, text, timestamp, isOwn, senderLabe
         <div style={{ marginBottom: '4px' }}>
           {text}
         </div>
-        {timestamp && (
+        {(timestamp || typeof timestamp_ms !== 'undefined') && (
           <div style={{
             fontSize: '11px',
             opacity: 0.7,
             textAlign: isOwn ? 'right' : 'left',
             marginTop: '4px'
           }}>
-            {formatTime(timestamp)}
+            {formatTime(timestamp, timestamp_ms)}
           </div>
         )}
       </div>

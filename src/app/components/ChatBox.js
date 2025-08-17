@@ -200,6 +200,7 @@ export default function ChatBox({ toggleRightPanel, isRightPanelOpen, isMobile }
                   from={msg.from}
                   text={msg.text}
                   timestamp={msg.timestamp}
+                  timestamp_ms={msg.timestamp_ms}
                   isOwn={isOwn}
                   senderLabel={senderLabel}
                 />
