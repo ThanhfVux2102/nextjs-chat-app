@@ -573,6 +573,9 @@ export function ChatProvider({ children }) {
           room.member_ids ||
           (room.other_user_id && me ? [String(me), String(room.other_user_id)] : []);
 
+        // Normalize last updated time
+        const lastUpd = room.last_updated || room.updated_at || room.last_message_time || new Date().toISOString();
+
         const normalizedRoom = {
           ...room,
           chat_id: room.chat_id || room.id,
@@ -582,6 +585,10 @@ export function ChatProvider({ children }) {
           other_user_username: room.other_user_username || room.username,
           other_user_email: room.other_user_email || room.email,
           last_message: room.last_message || '',
+          last_updated: lastUpd,
+          last_updated_ms: parseTimestampToMs(lastUpd),
+          // ensure a message time for UI ordering/preview if needed
+          last_message_time: room.last_message_time || lastUpd,
         };
 
         // 🚫 Hard filter: skip ghost/placeholder rooms
