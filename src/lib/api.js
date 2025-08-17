@@ -232,11 +232,14 @@ export async function getMessageHistory(chatId = null, cursor = null, limit = 50
         params.append('chat_id', chatId);
       }
 
-      if (cursor) {
-        params.append('cursor', cursor);
+      if (cursor !== null && cursor !== undefined) {
+        params.append('cursor', String(cursor));
       }
       if (limit) {
-        params.append('limit', String(limit));
+        // Support backends expecting either 'limit' or 'size'
+        const val = String(limit)
+        params.append('limit', val)
+        params.append('size', val)
       }
 
       if (params.toString()) {
