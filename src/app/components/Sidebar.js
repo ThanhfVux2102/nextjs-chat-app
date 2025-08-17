@@ -770,6 +770,7 @@ export default function Sidebar({ onClose }) {
             maxWidth: 500,
             maxHeight: '80vh',
             display: 'flex',
+            position: 'relative',
             flexDirection: 'column'
           }}>
             {/* Modal Header */}
@@ -787,9 +788,15 @@ export default function Sidebar({ onClose }) {
                   setModalSearchResults([])
                 }}
                 style={{
+                  position: 'absolute',
+                  top: 12,
+                  right: 12,
+                  width: 32,
+                  height: 32,
                   background: 'none',
                   border: 'none',
                   fontSize: 24,
+                  lineHeight: '32px',
                   cursor: 'pointer',
                   color: '#666'
                 }}
@@ -915,15 +922,16 @@ export default function Sidebar({ onClose }) {
             maxWidth: 560,
             maxHeight: '80vh',
             display: 'flex',
+            position: 'relative',
             flexDirection: 'column'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h3 style={{ fontSize: 20, fontWeight: 'bold', margin: 0 }}>Create Group</h3>
               <button
                 onClick={() => setShowGroupModal(false)}
-                style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#666' }}
+                style={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32, background: 'none', border: 'none', fontSize: 24, lineHeight: '32px', cursor: 'pointer', color: '#666' }}
               >
-                ×
+                x
               </button>
             </div>
             <input
@@ -1005,7 +1013,7 @@ export default function Sidebar({ onClose }) {
               )}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-              <button onClick={() => setShowGroupModal(false)} style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #ddd', backgroundColor: '#fff', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => setShowGroupModal(false)} style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #ddd', backgroundColor: '#fff', cursor: 'pointer', color: '#666' }}>Cancel</button>
               <button onClick={handleCreateGroup} style={{ padding: '8px 14px', borderRadius: 6, border: 'none', backgroundColor: '#007AFF', color: '#fff', cursor: 'pointer' }}>Create Group</button>
             </div>
           </div>
